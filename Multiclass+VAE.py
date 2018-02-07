@@ -27,33 +27,33 @@ def scale_and_shift(x, labels, reuse=True):
     with tf.variable_scope("scale_and_shift", reuse=reuse):
         axis = [1,2]
         x_shape = x.get_shape().as_list()
-        print(f'x shape: {x_shape}')
+        print('x shape: {}'.format(x_shape))
         beta = tf.get_variable( 'beta', [n_classes])# ,
                                      # initializer=tf.zeros_initializer())
-        print(f'beta shape: {beta.get_shape().as_list()}')
+        print('beta shape: {}'.format(beta.get_shape().as_list()))
         gamma = tf.get_variable( 'gamma', [n_classes])#,
                                     # initializer=tf.ones_initializer())
-        print(f'gamma shape: {gamma.get_shape().as_list()}')
+        print('gamma shape: {gamma.get_shape().as_list()}')
         
         conditioned_shift = tf.gather(beta, labels)
-        print(f'conditioned_shift shape: {conditioned_shift.get_shape().as_list()}')
+        print('conditioned_shift shape: {}'.format(conditioned_shift.get_shape().as_list()))
         conditioned_shift = tf.expand_dims(tf.expand_dims(conditioned_shift, 1), 1)
-        print(f'conditioned_shift shape: {conditioned_shift.get_shape().as_list()}')
+        print('conditioned_shift shape: {}'.format(conditioned_shift.get_shape().as_list()))
         
         conditioned_scale = tf.gather(gamma, labels)
-        print(f'conditioned_scale shape: {conditioned_scale.get_shape().as_list()}')
+        print('conditioned_scale shape: {}'.format(conditioned_scale.get_shape().as_list()))
         conditioned_scale = tf.expand_dims(tf.expand_dims(conditioned_scale, 1), 1)
-        print(f'conditioned_scale shape: {conditioned_scale.get_shape().as_list()}')
+        print('conditioned_scale shape: {}'.format(conditioned_scale.get_shape().as_list()))
         
         mean, variance = tf.nn.moments(x, axis, keep_dims=True)
-        print(f'mean shape: {mean.get_shape().as_list()}')
-        print(f'variance shape: {variance.get_shape().as_list()}')
+        print('mean shape: {}'.format(mean.get_shape().as_list()))
+        print('variance shape: {}'.format(variance.get_shape().as_list()))
         
         moments_shape = tf.shape(mean)
         mu = tf.zeros(moments_shape)
         sigma = tf.ones(moments_shape)
-        print(f'mu shape: {mu.get_shape().as_list()}')
-        print(f'sigma shape: {sigma.get_shape().as_list()}')
+        print('mu shape: {}'.format(mu.get_shape().as_list()))
+        print('sigma shape: {}'.format(sigma.get_shape().as_list()))
         
         variance_epsilon = 0.01
 #         output = tf.nn.batch_normalization(x=x, mean=conditioned_shift,
@@ -64,7 +64,7 @@ def scale_and_shift(x, labels, reuse=True):
                                            variance=sigma,
                                            offset=conditioned_shift, scale=conditioned_scale,
                                            variance_epsilon=variance_epsilon)
-        print(f'output shape: {output.get_shape().as_list()}')
+        print('output shape: {}'.format(output.get_shape().as_list()))
         return output
 
     
@@ -75,7 +75,7 @@ def encoder(X_in, labels, keep_prob):
         X = tf.reshape(X_in, shape=[-1, 210, 160, 3])
         
         x = tf.layers.conv2d(X, filters=64, kernel_size=4, strides=2, padding='same', activation=activation)
-        print(f'x shape: {tf.shape(x)}')
+        print('x shape: {}'.format(tf.shape(x)))
         x = scale_and_shift(x, labels, reuse=False)
         x = tf.nn.dropout(x, keep_prob)
         
@@ -87,7 +87,7 @@ def encoder(X_in, labels, keep_prob):
         x = tf.nn.dropout(x, keep_prob)
         
         x = tf.contrib.layers.flatten(x)
-        print(f'final x: {x.get_shape().as_list()}')
+        print('final x: {}'.format(x.get_shape().as_list()))
         mn = tf.layers.dense(x, units=n_latent)
         sd = 0.5 * tf.layers.dense(x, units=n_latent)            
         epsilon = tf.random_normal(tf.stack([tf.shape(x)[0], n_latent])) 
@@ -121,8 +121,8 @@ X_in = tf.placeholder(dtype=tf.float32, shape=[None, 210, 160, 3], name='X')
 Labels = tf.placeholder(dtype=tf.int32, shape=[None], name='Labels')
 Y = tf.placeholder(dtype=tf.float32, shape=[None, 210, 160, 3], name='Y')
 Y_flat = tf.reshape(Y, shape=[-1, 210*160*3])
-print(f'Y_flat: {Y_flat.get_shape().as_list()}')
-print(f'Labels: {Labels.get_shape().as_list()}')
+print('Y_flat: {}'.format(Y_flat.get_shape().as_list()))
+print('Labels: {}'.format(Labels.get_shape().as_list()))
 keep_prob = tf.placeholder(dtype=tf.float32, shape=(), name='keep_prob')
 
 dec_in_channels = 1
@@ -133,10 +133,10 @@ inputs_decoder = 49 * dec_in_channels // 2
 
 sampled, mn, sd = encoder(X_in, Labels, keep_prob)
 dec = decoder(sampled, keep_prob)
-print(f'dec: {dec.get_shape().as_list()}')
+print('dec: {}'.format(dec.get_shape().as_list()))
 
 unreshaped = tf.reshape(dec, [-1, 210*160*3])
-print(f'unreshaped: {unreshaped.get_shape().as_list()}')
+print('unreshaped: {}'.format(unreshaped.get_shape().as_list()))
 img_loss = tf.reduce_sum(tf.squared_difference(unreshaped, Y_flat), 1)
 print('here0')
 latent_loss = -0.5 * tf.reduce_sum(1.0 + 2.0 * sd - tf.square(mn) - tf.exp(2.0 * sd), 1)
@@ -157,7 +157,7 @@ for i, root_dir in enumerate(directories):
         for fname in file_list:
             state_label_pairs.append((root_dir + '/' + fname, i))
 
-print(f'Found {len(state_list)} files.')
+print('Found {} files.'.format(len(state_list)))
 
 
 # ### Train Model
