@@ -10,10 +10,10 @@ from scipy.misc import imsave
 batch_size = 4
 n_classes = 10
 
+var_init=tf.contrib.layers.variance_scaling_initializer()
+
 
 # ### Define Computation Graph
-
-
 def lrelu(x, alpha=0.3):
     return tf.maximum(x, tf.multiply(x, alpha))
 
@@ -22,8 +22,8 @@ def scale_and_shift_flat(x, labels, name='s_and_s'):
     with tf.variable_scope(name, reuse=None):
         axis = [1]
         x_shape = x.get_shape().as_list()
-        beta = tf.get_variable( 'beta', [n_classes])
-        gamma = tf.get_variable( 'gamma', [n_classes])
+        beta = tf.get_variable( 'beta', [n_classes], initializer=var_init)
+        gamma = tf.get_variable( 'gamma', [n_classes], initializer=var_init)
 
         class_shift = tf.gather(beta, labels)
         class_shift = tf.expand_dims(class_shift, 1)
@@ -44,8 +44,8 @@ def scale_and_shift(x, labels, name='s_and_s'):
     with tf.variable_scope(name, reuse=None):
         axis = [1,2]
         x_shape = x.get_shape().as_list()
-        beta = tf.get_variable( 'beta', [n_classes])
-        gamma = tf.get_variable( 'gamma', [n_classes])
+        beta = tf.get_variable( 'beta', [n_classes], initializer=var_init)
+        gamma = tf.get_variable( 'gamma', [n_classes], initializer=var_init)
         
         class_shift = tf.gather(beta, labels)
         class_shift = tf.expand_dims(tf.expand_dims(tf.expand_dims(class_shift, 1), 1), 1)
@@ -67,15 +67,15 @@ def encoder(X_in, labels, keep_prob):
     with tf.variable_scope("encoder", reuse=None):
         X = tf.reshape(X_in, shape=[-1, 28, 28, 1])
         
-        x = tf.layers.conv2d(X, filters=64, kernel_size=4, strides=2, padding='same', activation=activation)
+        x = tf.layers.conv2d(X, filters=64, kernel_size=4, strides=2, padding='same', activation=activation, kernel_initializer=var_init)
         x = scale_and_shift(x, labels, name='s_and_s/1')
         x = tf.nn.dropout(x, keep_prob)
         
-        x = tf.layers.conv2d(x, filters=64, kernel_size=4, strides=2, padding='same', activation=activation)
+        x = tf.layers.conv2d(x, filters=64, kernel_size=4, strides=2, padding='same', activation=activation, kernel_initializer=var_init)
         x = scale_and_shift(x, labels, name='s_and_s/2')
         x = tf.nn.dropout(x, keep_prob)
         
-        x = tf.layers.conv2d(x, filters=64, kernel_size=4, strides=1, padding='same', activation=activation)
+        x = tf.layers.conv2d(x, filters=64, kernel_size=4, strides=1, padding='same', activation=activation, kernel_initializer=var_init)
         x = scale_and_shift(x, labels, name='s_and_s/3')
         x = tf.nn.dropout(x, keep_prob)
         
@@ -89,26 +89,26 @@ def encoder(X_in, labels, keep_prob):
 
 def decoder(sampled_z, labels, keep_prob):
     with tf.variable_scope("decoder", reuse=None):
-        x = tf.layers.dense(sampled_z, units=inputs_decoder, activation=lrelu)
+        x = tf.layers.dense(sampled_z, units=inputs_decoder, activation=lrelu, kernel_initializer=var_init)
         x = scale_and_shift_flat(x, labels, name='s_and_s/4')
         
-        x = tf.layers.dense(x, units=(inputs_decoder * 2 + 1), activation=lrelu)
+        x = tf.layers.dense(x, units=(inputs_decoder * 2 + 1), activation=lrelu, kernel_initializer=var_init)
         x = scale_and_shift_flat(x, labels, name='s_and_s/5')
         x = tf.reshape(x, reshaped_dim)
         
-        x = tf.layers.conv2d_transpose(x, filters=64, kernel_size=4, strides=2, padding='same', activation=tf.nn.relu)
+        x = tf.layers.conv2d_transpose(x, filters=64, kernel_size=4, strides=2, padding='same', activation=tf.nn.relu, kernel_initializer=var_init)
         x = scale_and_shift(x, labels, name='s_and_s/6')
         x = tf.nn.dropout(x, keep_prob)
         
-        x = tf.layers.conv2d_transpose(x, filters=64, kernel_size=4, strides=1, padding='same', activation=tf.nn.relu)
+        x = tf.layers.conv2d_transpose(x, filters=64, kernel_size=4, strides=1, padding='same', activation=tf.nn.relu, kernel_initializer=var_init)
         x = scale_and_shift(x, labels, name='s_and_s/7')
         x = tf.nn.dropout(x, keep_prob)
         
-        x = tf.layers.conv2d_transpose(x, filters=64, kernel_size=4, strides=1, padding='same', activation=tf.nn.relu)
+        x = tf.layers.conv2d_transpose(x, filters=64, kernel_size=4, strides=1, padding='same', activation=tf.nn.relu, kernel_initializer=var_init)
         x = scale_and_shift(x, labels, name='s_and_s/8')
         
         x = tf.contrib.layers.flatten(x)
-        x = tf.layers.dense(x, units=28*28, activation=tf.nn.sigmoid)
+        x = tf.layers.dense(x, units=28*28, activation=tf.nn.sigmoid, kernel_initializer=var_init)
         img = tf.reshape(x, shape=[-1, 28, 28, 1])
         return img
 
