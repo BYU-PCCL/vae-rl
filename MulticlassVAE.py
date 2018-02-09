@@ -20,7 +20,7 @@ def lrelu(x, alpha=0.3):
 
 def scale_and_shift_flat(x, labels, name='s_and_s'):
     with tf.variable_scope(name, reuse=None):
-        axis = [1,2]
+        axis = [1]
         x_shape = x.get_shape().as_list()
         beta = tf.get_variable( 'beta', [n_classes])
         gamma = tf.get_variable( 'gamma', [n_classes])
