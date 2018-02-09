@@ -1,10 +1,3 @@
-
-# coding: utf-8
-
-# In[4]:
-
-get_ipython().magic(u'matplotlib inline')
-
 import tensorflow as tf
 import numpy as np
 import matplotlib.pyplot as plt
@@ -14,21 +7,16 @@ import random
 
 # ### Define Hyperparameters
 
-# In[5]:
-
 batch_size = 4
 n_classes = 5
 
 
 # ### Define Computation Graph
 
-# In[24]:
 
 def lrelu(x, alpha=0.3):
     return tf.maximum(x, tf.multiply(x, alpha))
 
-
-# In[25]:
 
 def scale_and_shift_flat(x, labels, name='s_and_s'):
     with tf.variable_scope(name, reuse=None):
@@ -47,9 +35,6 @@ def scale_and_shift_flat(x, labels, name='s_and_s'):
         output *= class_scale
         return output
         
-
-
-# In[26]:
 
 def scale_and_shift(x, labels, name='s_and_s'):
     with tf.variable_scope(name, reuse=None):
@@ -72,10 +57,6 @@ def scale_and_shift(x, labels, name='s_and_s'):
         return output
 
     
-
-
-# In[27]:
-
 def encoder(X_in, labels, keep_prob):
     activation = lrelu
     with tf.variable_scope("encoder", reuse=None):
@@ -100,8 +81,6 @@ def encoder(X_in, labels, keep_prob):
         z  = mn + tf.multiply(epsilon, tf.exp(sd))
         return z, mn, sd
 
-
-# In[28]:
 
 def decoder(sampled_z, labels, keep_prob):
     with tf.variable_scope("decoder", reuse=None):
@@ -128,8 +107,6 @@ def decoder(sampled_z, labels, keep_prob):
         img = tf.reshape(x, shape=[-1, 210, 160, 3])
         return img
 
-
-# In[ ]:
 
 tf.reset_default_graph()
 
@@ -169,8 +146,6 @@ sess.run(tf.global_variables_initializer())
 
 # ### Gather New Training Data
 
-# In[6]:
-
 directories = ['jamesbond', 'spaceinvaders', 'tutankham', 'venture', 'zaxxon']
 state_label_pairs = []
 for i, root_dir in enumerate(directories):
@@ -183,8 +158,6 @@ print('Found {} files.'.format(len(state_label_pairs)))
 
 # ### Train the Model
 
-# In[8]:
-
 def read_image(filename):
     image = np.load(filename)
     print(image.shape)
@@ -192,8 +165,6 @@ def read_image(filename):
     plt.show()
     return image
 
-
-# In[9]:
 
 batch_losses = []
 avg_img_losses = []
@@ -214,7 +185,7 @@ for i in range(1):
         avg_img_losses.append(np.mean(batch_img_loss))
         
         plt.imsave(fname='multi_vae_results/iteration_{}_original.png'.format(i), arr=np.reshape(batch[0], [210, 160, 3]), format='png')
-        plt.imsave(fname='multi_vae_results/iteration_{}_reconstructed.png'.format(i), decoded[0], format='png')
+        plt.imsave(fname='multi_vae_results/iteration_{}_reconstructed.png'.format(i), arr=decoded[0], format='png')
         
         plt.title('Batch losses')
         plt.plot(np.arange(len(batch_losses)), batch_losses)
@@ -231,8 +202,6 @@ for i in range(1):
 
 # ### Sample New Images
 
-# In[10]:
-
 n_samples = 10
 randoms = [np.random.normal(0, 1, n_latent) for _ in range(n_samples)]
 classes = [np.random.choice(n_classes) for _ in range(n_samples)]
@@ -242,7 +211,7 @@ imgs = [np.reshape(imgs[i], [210, 160, 3]) for i in range(len(imgs))]
 for img in imgs:
     plt.figure(figsize=(1,1))
     plt.axis('off')
-    plt.imshow(img, cmap='gray')
+    plt.imshow(img)
     
 n_samples = 10
 randoms = [np.random.normal(0, 1, n_latent) for _ in range(n_samples)]
