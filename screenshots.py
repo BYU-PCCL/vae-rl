@@ -19,8 +19,10 @@ for _ in range(1000):
     env.render()
     action = env.action_space.sample()
     actions.append(action)
-    res = env.step(action) # take a random action
-    rewards.append(res)
+    obs, rew, done, info = env.step(action) # take a random action
+    rewards.append(rew)
+	if(done):
+		break
     if _ % 10 == 0:
         np.save(states_folder + "state_{}".format(_), res[0])
 
@@ -28,4 +30,3 @@ if rewards_filepath:
 	np.save(rewards_filepath, rewards)
 if actions_filepath:
 	np.save(actions_filepath, actions)
-
