@@ -21,9 +21,11 @@ for run in range(10):
         # env.render()
         action = env.action_space.sample()
         actions.append(action)
-        res = env.step(action) # take a random action
-        rewards.append(res)
-        
+        obs, rew, done, info = env.step(action) # take a random action
+        rewards.append(rew)
+		if(done):
+			break
+
         # create a folder for the run if it doesn't already exist
         states_folder_extended = states_folder + "run_{}/".format(run+1)
         os.makedirs(states_folder_extended, exist_ok=True)
@@ -36,4 +38,3 @@ for run in range(10):
         np.save(rewards_filepath, rewards)
     if actions_filepath:
         np.save(actions_filepath, actions)
-
