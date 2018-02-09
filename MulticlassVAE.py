@@ -31,8 +31,12 @@ def scale_and_shift_flat(x, labels, name='s_and_s'):
         class_scale = tf.gather(gamma, labels)
         class_scale = tf.expand_dims(class_scale, 1)
 
-        output = x + class_shift
-        output *= class_scale
+        variance_epsilon = 0.01
+        mean, variance = tf.nn.moments(x, axis, keep_dims=True)
+        output = tf.nn.batch_normalization(x=x, mean=mean,
+                                           variance=variance,
+                                           offset=class_shift, scale=class_scale,
+                                           variance_epsilon=variance_epsilon)
         return output
         
 
@@ -49,6 +53,7 @@ def scale_and_shift(x, labels, name='s_and_s'):
         class_scale = tf.gather(gamma, labels)
         class_scale = tf.expand_dims(tf.expand_dims(tf.expand_dims(class_scale, 1), 1), 1)
         
+        variance_epsilon = 0.01
         mean, variance = tf.nn.moments(x, axis, keep_dims=True)
         output = tf.nn.batch_normalization(x=x, mean=mean,
                                            variance=variance,
