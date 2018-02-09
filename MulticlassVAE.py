@@ -1,6 +1,6 @@
 import tensorflow as tf
 import numpy as np
-import matplotlib.pyplot as plt
+# from matplotlib import pyplot as plt
 import os
 import random
 
@@ -187,17 +187,20 @@ for i in range(1):
         plt.imsave(fname='multi_vae_results/iteration_{}_original.png'.format(i), arr=np.reshape(batch[0], [210, 160, 3]), format='png')
         plt.imsave(fname='multi_vae_results/iteration_{}_reconstructed.png'.format(i), arr=decoded[0], format='png')
         
-        plt.title('Batch losses')
-        plt.plot(np.arange(len(batch_losses)), batch_losses)
-        plt.tight_layout()
-        plt.savefig('multi_vae_results/iteration_{}_batch_losses', dpi=300)
+        # plt.title('Batch losses')
+        # plt.plot(np.arange(len(batch_losses)), batch_losses)
+        # plt.tight_layout()
+        # plt.savefig('multi_vae_results/iteration_{}_batch_losses', dpi=300)
         
-        plt.title('Sparse Batch losses')
-        plt.plot(np.arange(len(sparse_batch_losses)), sparse_batch_losses)
-        plt.tight_layout()
-        plt.savefig('multi_vae_results/iteration_{}_sparse_batch_losses', dpi=300)
+        # plt.title('Sparse Batch losses')
+        # plt.plot(np.arange(len(sparse_batch_losses)), sparse_batch_losses)
+        # plt.tight_layout()
+        # plt.savefig('multi_vae_results/iteration_{}_sparse_batch_losses', dpi=300)
         
         print('iteration: {}; batch loss: {}, mean img loss: {}'.format(i, batch_loss, np.mean(batch_img_loss)))
+
+np.save(file='all_batch_losses', arr=batch_losses)
+np.save(file='sparse_batch_losses', arr=sparse_batch_losses)
 
 
 # ### Sample New Images
