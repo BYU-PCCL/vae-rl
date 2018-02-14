@@ -112,16 +112,17 @@ def decoder(sampled_z, labels, keep_prob):
         img = tf.reshape(x, shape=[-1, 210, 160, 3])
         return img
 
+### Initialize computation graph
 
 tf.reset_default_graph()
 
 batch_size = 4
 n_classes = 10
 
-X_in = tf.placeholder(dtype=tf.float32, shape=[None, 210, 160, 3], name='X')
+X_in = tf.placeholder(dtype=tf.float32, shape=[None, 70, 54, 3], name='X')
 Labels = tf.placeholder(dtype=tf.int32, shape=[None], name='Labels')
-Y = tf.placeholder(dtype=tf.float32, shape=[None, 210, 160, 3], name='Y')
-Y_flat = tf.reshape(Y, shape=[-1, 210 * 160 * 3])
+Y = tf.placeholder(dtype=tf.float32, shape=[None, 70, 54, 3], name='Y')
+Y_flat = tf.reshape(Y, shape=[-1, 70*54*3])
 keep_prob = tf.placeholder(dtype=tf.float32, shape=(), name='keep_prob')
 
 dec_in_channels = 1
@@ -133,7 +134,7 @@ inputs_decoder = 49 * dec_in_channels // 2
 sampled, mn, sd = encoder(X_in, Labels, keep_prob)
 dec = decoder(sampled, Labels, keep_prob)
 
-unreshaped = tf.reshape(dec, [-1, 210*160*3])
+unreshaped = tf.reshape(dec, [-1, 70*54*3])
 img_loss = tf.reduce_sum(tf.squared_difference(unreshaped, Y_flat), 1)
 latent_loss = -0.5 * tf.reduce_sum(1.0 + 2.0 * sd - tf.square(mn) - tf.exp(2.0 * sd), 1)
 loss = tf.reduce_mean(img_loss + latent_loss)
@@ -145,8 +146,11 @@ learning_rate = tf.train.exponential_decay(starter_learning_rate, global_step,
                                            1000, 0.96, staircase=True)
 
 optimizer = tf.train.AdamOptimizer(learning_rate).minimize(loss)
+print('Starting session...')
 sess = tf.Session()
+print('Initializing variables...')
 sess.run(tf.global_variables_initializer())
+print('Variables initialized.')
 
 
 # ### Gather New Training Data
@@ -163,12 +167,21 @@ print('Found {} files.'.format(len(state_label_pairs)))
 
 # ### Train the Model
 
+def reduce_image_shape(image):
+    height = image.shape[0] - 210
+    change = height // 2
+    cut_image = image[change:(change+210),:]
+    return cut_image
+    
+def downsample_image(image):
+    red_image = block_reduce(image, block_size=(3, 3, 1), func=np.mean)
+    return red_image
+
 def read_image(filename):
     image = np.load(filename)
-    print(image.shape)
-    plt.imshow(image)
-    plt.show()
-    return image
+    cut_image = reduce_image_shape(image)
+    red_image = downsample_image(cut_image)
+    return red_image
 
 
 batch_losses = []
@@ -189,32 +202,21 @@ for i in range(1):
         sparse_batch_losses.append(batch_loss)
         avg_img_losses.append(np.mean(batch_img_loss))
         
-        plt.imsave(fname='multi_vae_results/iteration_{}_original.png'.format(i), arr=np.reshape(batch[0], [210, 160, 3]), format='png')
+        plt.imsave(fname='multi_vae_results/iteration_{}_original.png'.format(i), arr=np.reshape(batch[0], [70, 54, 3]), format='png')
         plt.imsave(fname='multi_vae_results/iteration_{}_reconstructed.png'.format(i), arr=decoded[0], format='png')
-        
-        # plt.title('Batch losses')
-        # plt.plot(np.arange(len(batch_losses)), batch_losses)
-        # plt.tight_layout()
-        # plt.savefig('multi_vae_results/iteration_{}_batch_losses', dpi=300)
-        
-        # plt.title('Sparse Batch losses')
-        # plt.plot(np.arange(len(sparse_batch_losses)), sparse_batch_losses)
-        # plt.tight_layout()
-        # plt.savefig('multi_vae_results/iteration_{}_sparse_batch_losses', dpi=300)
-        
         print('iteration: {}; batch loss: {}, mean img loss: {}'.format(i, batch_loss, np.mean(batch_img_loss)))
 
 np.save(file='all_batch_losses', arr=batch_losses)
 np.save(file='sparse_batch_losses', arr=sparse_batch_losses)
 
 
-# ### Sample New Images
+### Sample New Images
 
 n_samples = 10
 randoms = [np.random.normal(0, 1, n_latent) for _ in range(n_samples)]
 classes = [np.random.choice(n_classes) for _ in range(n_samples)]
 imgs = sess.run(dec, feed_dict = {sampled: randoms, keep_prob: 1.0})
-imgs = [np.reshape(imgs[i], [210, 160, 3]) for i in range(len(imgs))]
+imgs = [np.reshape(imgs[i], [70, 54, 3]) for i in range(len(imgs))]
 
 for img in imgs:
     plt.figure(figsize=(1,1))
@@ -225,7 +227,7 @@ n_samples = 10
 randoms = [np.random.normal(0, 1, n_latent) for _ in range(n_samples)]
 labels = [np.random.choice(n_classes) for _ in range(n_samples)]
 imgs = sess.run(dec, feed_dict = {sampled: randoms, Labels: labels, keep_prob: 1.0})
-imgs = [np.reshape(imgs[i], [210, 160, 3]) for i in range(len(imgs))]
+imgs = [np.reshape(imgs[i], [70, 54, 3]) for i in range(len(imgs))]
 
 for i, img, c in zip(range(n_samples, imgs, classes)):
     plt.imsave(fname='multi_vae_results/reconstruction_{}_class_{}'.format(i, c), arr=img, format='png')
