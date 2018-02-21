@@ -1,9 +1,10 @@
 import tensorflow as tf
 import numpy as np
-from matplotlib import pyplot as plt
+# from matplotlib import pyplot as plt
 import os
 import random
 from skimage.measure import block_reduce
+from skimage.io import imsave
 
 
 # ### Define Hyperparameters
@@ -203,9 +204,9 @@ for i in range(1):
         batch_losses.append(batch_loss)
         sparse_batch_losses.append(batch_loss)
         avg_img_losses.append(np.mean(batch_img_loss))
-        
-        plt.imsave(fname='multi_vae_results/iteration_{}_original.png'.format(i), arr=np.reshape(batch[0], [70, 54, 3]), format='png')
-        plt.imsave(fname='multi_vae_results/iteration_{}_reconstructed.png'.format(i), arr=decoded[0], format='png')
+
+        imsave(fname='multi_vae_results/iteration_{}_original.png'.format(i), arr=np.reshape(batch[0], [70, 54, 3])/255.)
+        imsave(fname='multi_vae_results/iteration_{}_reconstructed.png'.format(i), arr=decoded[0]/255.)
         print('iteration: {}; batch loss: {}, mean img loss: {}'.format(i, batch_loss, np.mean(batch_img_loss)))
 
 np.save(file='all_batch_losses', arr=batch_losses)
@@ -220,10 +221,10 @@ classes = [np.random.choice(n_classes) for _ in range(n_samples)]
 imgs = sess.run(dec, feed_dict = {Labels: np.zeros(n_samples), sampled: randoms, keep_prob: 1.0})
 imgs = [np.reshape(imgs[i], [70, 54, 3]) for i in range(len(imgs))]
 
-for img in imgs:
-    plt.figure(figsize=(1,1))
-    plt.axis('off')
-    plt.imshow(img)
+# for img in imgs:
+#     plt.figure(figsize=(1,1))
+#     plt.axis('off')
+#     plt.imshow(img)
     
 n_samples = 10
 randoms = [np.random.normal(0, 1, n_latent) for _ in range(n_samples)]
@@ -232,5 +233,5 @@ imgs = sess.run(dec, feed_dict = {sampled: randoms, Labels: labels, keep_prob: 1
 imgs = [np.reshape(imgs[i], [70, 54, 3]) for i in range(len(imgs))]
 
 for i, img, c in zip(range(n_samples), imgs, classes):
-    plt.imsave(fname='multi_vae_results/reconstruction_{}_class_{}'.format(i, c), arr=img, format='png')
+    imsave(fname='multi_vae_results/reconstruction_{}_class_{}.png'.format(i, c), arr=img/255.)
 
