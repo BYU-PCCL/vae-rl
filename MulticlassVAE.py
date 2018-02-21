@@ -157,12 +157,20 @@ print('Variables initialized.')
 
 # ### Gather New Training Data
 
-directories = ['jamesbond', 'spaceinvaders', 'tutankham', 'venture', 'zaxxon']
+directories = ['airraid', 'battlezone', 'choppercommand', 'krull', 'riverraid', 'spaceinvaders', 'zaxxon']
+# directories = ['jamesbond', 'spaceinvaders', 'tutankham', 'venture', 'zaxxon']
 state_label_pairs = []
 for i, root_dir in enumerate(directories):
+    # for root, dirs, files in os.walk(directories):
+    #     for name in files:
+    #         print(os.path.join(root, name))
+    #     for name in dirs:
+    #         print(os.path.join(root, name))
     for dir_name, subdir_list, file_list in os.walk(root_dir+'/'):
         for fname in file_list:
-            state_label_pairs.append((root_dir + '/' + fname, i))
+            if 'multi_vae_results' not in root_dir:
+                state_label_pairs.append((os.path.join(dir_name, fname), i))
+                # state_label_pairs.append((root_dir + '/' + fname, i))
 
 print('Found {} files.'.format(len(state_label_pairs)))
 
@@ -190,8 +198,9 @@ def read_image(filename):
 batch_losses = []
 avg_img_losses = []
 sparse_batch_losses = []
+iterations = 10000
 
-for i in range(1):
+for i in range(10000):
     next_batch = random.sample(state_label_pairs, batch_size)
     batch = [read_image(b[0]) for b in next_batch]
     labels = np.array([lab[1] for lab in next_batch], dtype=np.int32)
