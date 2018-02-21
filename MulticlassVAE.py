@@ -1,8 +1,9 @@
 import tensorflow as tf
 import numpy as np
-# from matplotlib import pyplot as plt
+from matplotlib import pyplot as plt
 import os
 import random
+from skimage.measure import block_reduce
 
 
 # ### Define Hyperparameters
@@ -65,7 +66,7 @@ def scale_and_shift(x, labels, name='s_and_s'):
 def encoder(X_in, labels, keep_prob):
     activation = lrelu
     with tf.variable_scope("encoder", reuse=None):
-        X = tf.reshape(X_in, shape=[-1, 210, 160, 3])
+        X = tf.reshape(X_in, shape=[-1, 70, 54, 3])
         
         x = tf.layers.conv2d(X, filters=64, kernel_size=4, strides=2, padding='same', activation=activation)
         x = scale_and_shift(x, labels, name='s_and_s/1')
@@ -108,8 +109,8 @@ def decoder(sampled_z, labels, keep_prob):
         x = scale_and_shift(x, labels, name='s_and_s/8')
         
         x = tf.contrib.layers.flatten(x)
-        x = tf.layers.dense(x, units=210*160*3, activation=tf.nn.sigmoid)
-        img = tf.reshape(x, shape=[-1, 210, 160, 3])
+        x = tf.layers.dense(x, units=70*54*3, activation=tf.nn.sigmoid)
+        img = tf.reshape(x, shape=[-1, 70, 54, 3])
         return img
 
 ### Initialize computation graph
@@ -175,6 +176,7 @@ def reduce_image_shape(image):
     
 def downsample_image(image):
     red_image = block_reduce(image, block_size=(3, 3, 1), func=np.mean)
+    print(red_image.shape)
     return red_image
 
 def read_image(filename):
@@ -191,7 +193,7 @@ sparse_batch_losses = []
 for i in range(1):
     next_batch = random.sample(state_label_pairs, batch_size)
     batch = [read_image(b[0]) for b in next_batch]
-    labels = [lab[1] for lab in next_batch]
+    labels = np.array([lab[1] for lab in next_batch], dtype=np.int32)
     batch_loss, batch_img_loss, _ = sess.run([loss, img_loss, optimizer], feed_dict = {X_in: batch, Y: batch, Labels: labels, keep_prob: 0.8})
     batch_losses.append(batch_loss)
     avg_img_losses.append(np.mean(batch_img_loss))
@@ -215,7 +217,7 @@ np.save(file='sparse_batch_losses', arr=sparse_batch_losses)
 n_samples = 10
 randoms = [np.random.normal(0, 1, n_latent) for _ in range(n_samples)]
 classes = [np.random.choice(n_classes) for _ in range(n_samples)]
-imgs = sess.run(dec, feed_dict = {sampled: randoms, keep_prob: 1.0})
+imgs = sess.run(dec, feed_dict = {Labels: np.zeros(n_samples), sampled: randoms, keep_prob: 1.0})
 imgs = [np.reshape(imgs[i], [70, 54, 3]) for i in range(len(imgs))]
 
 for img in imgs:
@@ -225,10 +227,10 @@ for img in imgs:
     
 n_samples = 10
 randoms = [np.random.normal(0, 1, n_latent) for _ in range(n_samples)]
-labels = [np.random.choice(n_classes) for _ in range(n_samples)]
+labels = np.array([np.random.choice(n_classes) for _ in range(n_samples)], dtype=np.int32)
 imgs = sess.run(dec, feed_dict = {sampled: randoms, Labels: labels, keep_prob: 1.0})
 imgs = [np.reshape(imgs[i], [70, 54, 3]) for i in range(len(imgs))]
 
-for i, img, c in zip(range(n_samples, imgs, classes)):
+for i, img, c in zip(range(n_samples), imgs, classes):
     plt.imsave(fname='multi_vae_results/reconstruction_{}_class_{}'.format(i, c), arr=img, format='png')
 
