@@ -2,15 +2,18 @@ import tensorflow as tf
 import numpy as np
 # from matplotlib import pyplot as plt
 import os
+import sys
 import random
 from skimage.measure import block_reduce
 from skimage.io import imsave
 
+iterations = sys.argv[1]
 
 # ### Define Hyperparameters
 
-batch_size = 4
-n_classes = 5
+batch_size = 216
+directories = ['asterix', 'elevatoraction', 'freeway', 'journeyescape', 'pitfall', 'qbert', 'skiing']
+n_classes = len(directories)
 
 
 # ### Define Computation Graph
@@ -81,6 +84,10 @@ def encoder(X_in, labels, keep_prob):
         x = scale_and_shift(x, labels, name='s_and_s/3')
         x = tf.nn.dropout(x, keep_prob)
         
+        x = tf.layers.conv2d(x, filters=64, kernel_size=4, strides=1, padding='same', activation=activation)
+        x = scale_and_shift(x, labels, name='s_and_s/4')
+        x = tf.nn.dropout(x, keep_prob)
+
         x = tf.contrib.layers.flatten(x)
         mn = tf.layers.dense(x, units=n_latent)
         sd = 0.5 * tf.layers.dense(x, units=n_latent)            
@@ -103,11 +110,15 @@ def decoder(sampled_z, labels, keep_prob):
         x = tf.nn.dropout(x, keep_prob)
         
         x = tf.layers.conv2d_transpose(x, filters=64, kernel_size=4, strides=1, padding='same', activation=tf.nn.relu)
-        x = scale_and_shift(x, labels, name='s_and_s/7')
+        x = scale_and_shift(x, labels, name='s_and_s/i7')
+        x = tf.nn.dropout(x, keep_prob)
+
+        x = tf.layers.conv2d_transpose(x, filters=64, kernel_size=4, strides=1, padding='same', activation=tf.nn.relu)
+        x = scale_and_shift(x, labels, name='s_and_s/8')
         x = tf.nn.dropout(x, keep_prob)
         
         x = tf.layers.conv2d_transpose(x, filters=64, kernel_size=4, strides=1, padding='same', activation=tf.nn.relu)
-        x = scale_and_shift(x, labels, name='s_and_s/8')
+        x = scale_and_shift(x, labels, name='s_and_s/9')
         
         x = tf.contrib.layers.flatten(x)
         x = tf.layers.dense(x, units=70*54*3, activation=tf.nn.sigmoid)
@@ -117,9 +128,6 @@ def decoder(sampled_z, labels, keep_prob):
 ### Initialize computation graph
 
 tf.reset_default_graph()
-
-batch_size = 4
-n_classes = 10
 
 X_in = tf.placeholder(dtype=tf.float32, shape=[None, 70, 54, 3], name='X')
 Labels = tf.placeholder(dtype=tf.int32, shape=[None], name='Labels')
@@ -143,7 +151,7 @@ loss = tf.reduce_mean(img_loss + latent_loss)
 
 # introduce variable learning rate
 global_step = tf.Variable(0, trainable=False)
-starter_learning_rate = 0.0005
+starter_learning_rate = 5e-6 # 0.000005
 learning_rate = tf.train.exponential_decay(starter_learning_rate, global_step,
                                            1000, 0.96, staircase=True)
 
@@ -157,8 +165,9 @@ print('Variables initialized.')
 
 # ### Gather New Training Data
 
-directories = ['airraid', 'battlezone', 'choppercommand', 'krull', 'riverraid', 'spaceinvaders', 'zaxxon']
+# directories = ['airraid', 'battlezone', 'choppercommand', 'krull', 'riverraid', 'spaceinvaders', 'zaxxon']
 # directories = ['jamesbond', 'spaceinvaders', 'tutankham', 'venture', 'zaxxon']
+# directories = ['asterix', 'elevatoraction', 'freeway', 'journeyescape', 'pitfall', 'qbert', 'skiing']
 state_label_pairs = []
 for i, root_dir in enumerate(directories):
     # for root, dirs, files in os.walk(directories):
@@ -185,7 +194,6 @@ def reduce_image_shape(image):
     
 def downsample_image(image):
     red_image = block_reduce(image, block_size=(3, 3, 1), func=np.mean)
-    print(red_image.shape)
     return red_image
 
 def read_image(filename):
@@ -198,9 +206,8 @@ def read_image(filename):
 batch_losses = []
 avg_img_losses = []
 sparse_batch_losses = []
-iterations = 10000
 
-for i in range(10000):
+for i in range(iterations):
     next_batch = random.sample(state_label_pairs, batch_size)
     batch = [read_image(b[0]) for b in next_batch]
     labels = np.array([lab[1] for lab in next_batch], dtype=np.int32)
@@ -208,14 +215,17 @@ for i in range(10000):
     batch_losses.append(batch_loss)
     avg_img_losses.append(np.mean(batch_img_loss))
         
-    if not i % 200:
+    if not i % 1000:
         batch_loss, decoded, batch_img_loss, mu, sigm = sess.run([loss, dec, img_loss, mn, sd], feed_dict = {X_in: batch, Y: batch, Labels: labels, keep_prob: 1.0})
+        # print('mu:', mu)
+        # print('sigm:', sigm)
         batch_losses.append(batch_loss)
         sparse_batch_losses.append(batch_loss)
         avg_img_losses.append(np.mean(batch_img_loss))
+        # print('decoded:', decoded[0])
 
         imsave(fname='multi_vae_results/iteration_{}_original.png'.format(i), arr=np.reshape(batch[0], [70, 54, 3])/255.)
-        imsave(fname='multi_vae_results/iteration_{}_reconstructed.png'.format(i), arr=decoded[0]/255.)
+        imsave(fname='multi_vae_results/iteration_{}_reconstructed.png'.format(i), arr=decoded[0])
         print('iteration: {}; batch loss: {}, mean img loss: {}'.format(i, batch_loss, np.mean(batch_img_loss)))
 
 np.save(file='all_batch_losses', arr=batch_losses)
@@ -226,21 +236,10 @@ np.save(file='sparse_batch_losses', arr=sparse_batch_losses)
 
 n_samples = 10
 randoms = [np.random.normal(0, 1, n_latent) for _ in range(n_samples)]
-classes = [np.random.choice(n_classes) for _ in range(n_samples)]
-imgs = sess.run(dec, feed_dict = {Labels: np.zeros(n_samples), sampled: randoms, keep_prob: 1.0})
-imgs = [np.reshape(imgs[i], [70, 54, 3]) for i in range(len(imgs))]
-
-# for img in imgs:
-#     plt.figure(figsize=(1,1))
-#     plt.axis('off')
-#     plt.imshow(img)
-    
-n_samples = 10
-randoms = [np.random.normal(0, 1, n_latent) for _ in range(n_samples)]
 labels = np.array([np.random.choice(n_classes) for _ in range(n_samples)], dtype=np.int32)
 imgs = sess.run(dec, feed_dict = {sampled: randoms, Labels: labels, keep_prob: 1.0})
 imgs = [np.reshape(imgs[i], [70, 54, 3]) for i in range(len(imgs))]
 
-for i, img, c in zip(range(n_samples), imgs, classes):
-    imsave(fname='multi_vae_results/reconstruction_{}_class_{}.png'.format(i, c), arr=img/255.)
+for i, img, c in zip(range(n_samples), imgs, labels):
+    imsave(fname='multi_vae_results/reconstruction_{}_class_{}.png'.format(i, c), arr=img)
 
