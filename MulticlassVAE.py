@@ -7,7 +7,7 @@ import random
 from skimage.measure import block_reduce
 from skimage.io import imsave
 
-iterations = sys.argv[1]
+iterations = int(sys.argv[1])
 
 # ### Define Hyperparameters
 
@@ -215,7 +215,7 @@ for i in range(iterations):
     batch_losses.append(batch_loss)
     avg_img_losses.append(np.mean(batch_img_loss))
         
-    if not i % 1000:
+    if not i % 10000:
         batch_loss, decoded, batch_img_loss, mu, sigm = sess.run([loss, dec, img_loss, mn, sd], feed_dict = {X_in: batch, Y: batch, Labels: labels, keep_prob: 1.0})
         # print('mu:', mu)
         # print('sigm:', sigm)
