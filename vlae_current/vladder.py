@@ -150,7 +150,7 @@ class VLadder(Network):
                 tf.summary.scalar("latent3_kl", self.ladder3_reg)
                 self.regularization += self.ladder3_reg
 
-	self.latent = tf.concat([self.iladder0_sample, self.iladder1_sample, self.iladder2_sample, self.iladder3_sample], 0)
+	self.latent = tf.concat([self.iladder0_sample, self.iladder1_sample, self.iladder2_sample, self.iladder3_sample], 1)
 
 
         # Define generative network
@@ -213,6 +213,7 @@ class VLadder(Network):
         tf.summary.scalar("reconstruction_loss", self.reconstruction_loss)
         tf.summary.scalar("regularization_loss", self.regularization)
         tf.summary.scalar("loss", self.loss)
+	#tf.summary.tensor_summary("latent_rep", self.latent)
 
         self.merged_summary = tf.summary.merge_all()
         self.iteration = 0
@@ -220,7 +221,6 @@ class VLadder(Network):
         update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
         with tf.control_dependencies(update_ops):
             self.train_op = tf.train.AdamOptimizer(0.0002).minimize(self.loss)
-
         # Set restart=True to not ignore previous checkpoint and restart training
         self.init_network(restart=restart)
         self.print_network()
@@ -246,7 +246,7 @@ class VLadder(Network):
         if self.iteration % 20 == 0:
             summary = self.sess.run(self.merged_summary, feed_dict=feed_dict)
             self.writer.add_summary(summary, self.iteration)
-        return recon_loss, reg_loss
+        return recon_loss, reg_loss, self.sess.run(self.latent, feed_dict=feed_dict) 
 
     def test(self, batch_input, label=None):
         train_return = self.sess.run(self.toutput,
@@ -292,7 +292,6 @@ class VLadder(Network):
 
     def generate_manifold_samples(self, external_layer, external_code):
         codes = {key: np.random.normal(size=[external_code.shape[0], self.ladders[key][1]]) for key in self.ladders}
-
         # To avoid breaking batch normalization fixed code must be inserted at random locations
         # num_insertions = 8
         # if num_insertions > external_code.shape[0]:
@@ -303,3 +302,8 @@ class VLadder(Network):
         feed_dict[self.is_training] = False
         output = self.sess.run(self.goutput, feed_dict=feed_dict)
         return output
+    
+    def get_latent_codes(self, image):
+	feed_dict = {self.input_placeholder: image,
+		     self.is_training: False}
+	return self.sess.run(self.latent, feed_dict=feed_dict)

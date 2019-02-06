@@ -10,7 +10,7 @@ from skimage.measure import block_reduce
 
 class AtariDataset(Dataset):
     def __init__(self, db_path = '', crop = True):
-        db_path = "../../../not_backed_up/atarigames/all_games_uneven/" + db_path
+        db_path = "../../../../not_backed_up/atarigames/all_games_uneven/" + db_path
         Dataset.__init__(self)
         self.data_files = []
         """ This is just if running on a specific sub folder

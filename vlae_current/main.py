@@ -62,10 +62,9 @@ else:
     print("Unknown dataset")
     exit(-1)
 
-# before restart = not args.no_train
-model = VLadder(dataset, file_path=fpath, name=args.netname, reg=args.reg, batch_size=args.batch_size, restart= args.no_train)
+model = VLadder(dataset, file_path=fpath, name=args.netname, reg=args.reg, batch_size=args.batch_size, restart=not args.no_train)
 trainer = NoisyTrainer(model, dataset, args)
 if args.no_train:
-    trainer.visualize()
+    trainer.output_codes()
 else:
     trainer.train()
