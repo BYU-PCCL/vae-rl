@@ -1,2 +1,0 @@
-model_checkpoint_path: "vladder_atari.ckpt"
-all_model_checkpoint_paths: "vladder_atari.ckpt"
