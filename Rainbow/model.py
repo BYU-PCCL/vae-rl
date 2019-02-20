@@ -1,15 +1,8 @@
-# M - started.
-
 import math
 import torch
 from torch import nn
-# nn.functional contains all convolution functions.
 from torch.nn import functional as F
 
-# M - end.
-
-
-# Factorised NoisyLinear layer with bias
 class NoisyLinear(nn.Module):
   def __init__(self, in_features, out_features, std_init=0.4):
     super(NoisyLinear, self).__init__()
@@ -48,23 +41,21 @@ class NoisyLinear(nn.Module):
     else:
       return F.linear(input, self.weight_mu, self.bias_mu)
 
-# M - started.
-
-# nn.Module is the base class for all neural networks.
 class DQN(nn.Module):
   def __init__(self, args, action_space):
     super().__init__()
-    # atoms - discretised size of value distribution.
     self.atoms = args.atoms
     self.action_space = action_space
-
-    # stride - the number of pixels to move the filter.
-    # padding - padding the image before the convolution to preserve volume.
-    self.conv1 = nn.Conv2d(args.history_length, 32, 8, stride=4, padding=1)
-    self.conv2 = nn.Conv2d(32, 64, 4, stride=2)
-    self.conv3 = nn.Conv2d(64, 64, 3)
-    self.fc_h_v = NoisyLinear(3136, args.hidden_size, std_init=args.noisy_std)
-    self.fc_h_a = NoisyLinear(3136, args.hidden_size, std_init=args.noisy_std)
+    # self.conv1 = nn.conv2d(args.history_length, 32, 8, stride=4, padding=1)
+    self.conv1 = nn.Conv2d(args.history_length, 32, 1)
+    # self.conv2 = nn.Conv2d(32, 64, 4, stride=2)
+    self.conv2 = nn.Conv2d(32, 64, 1)
+    # self.conv3 = nn.Conv2d(64, 64, 3)
+    self.conv3 = nn.Conv2d(64, 64, 1)
+    # self.fc_h_v = NoisyLinear(3136, args.hidden_size, std_init=args.noisy_std)
+    self.fc_h_v = NoisyLinear(2560, args.hidden_size, std_init=args.noisy_std)
+    # self.fc_h_a = NoisyLinear(3136, args.hidden_size, std_init=args.noisy_std)
+    self.fc_h_a = NoisyLinear(2560, args.hidden_size, std_init=args.noisy_std)
     self.fc_z_v = NoisyLinear(args.hidden_size, self.atoms, std_init=args.noisy_std)
     self.fc_z_a = NoisyLinear(args.hidden_size, action_space * self.atoms, std_init=args.noisy_std)
 
@@ -72,15 +63,16 @@ class DQN(nn.Module):
     x = F.relu(self.conv1(x))
     x = F.relu(self.conv2(x))
     x = F.relu(self.conv3(x))
-    x = x.view(-1, 3136)
-    v = self.fc_z_v(F.relu(self.fc_h_v(x)))  # Value stream
-    a = self.fc_z_a(F.relu(self.fc_h_a(x)))  # Advantage stream
+    # x = x.view(-1, 3136)
+    x = x.view(-1, 2560)
+    v = self.fc_z_v(F.relu(self.fc_h_v(x)))
+    a = self.fc_z_a(F.relu(self.fc_h_a(x)))
     v, a = v.view(-1, 1, self.atoms), a.view(-1, self.action_space, self.atoms)
-    q = v + a - a.mean(1, keepdim=True)  # Combine streams
-    if log:  # Use log softmax for numerical stability
-      q = F.log_softmax(q, dim=2)  # Log probabilities with action over second dimension
+    q = v + a - a.mean(1, keepdim=True)
+    if log:
+      q = F.log_softmax(q, dim=2)
     else:
-      q = F.softmax(q, dim=2)  # Probabilities with action over second dimension
+      q = F.softmax(q, dim=2)
     return q
 
   def reset_noise(self):
