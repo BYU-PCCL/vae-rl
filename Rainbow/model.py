@@ -45,20 +45,24 @@ class DQN(nn.Module):
   def __init__(self, args, action_space):
     super().__init__()
     self.atoms = args.atoms
-    self.useVLAE = args.use_encoder
     self.action_space = action_space
-    if self.useVLAE:
-      self.conv1 = nn.Conv2d(args.history_length, 32, 1)
-      self.conv2 = nn.Conv2d(32, 64, 1)
-      self.conv3 = nn.Conv2d(64, 64, 1)
-      self.fc_h_v = NoisyLinear(2560, args.hidden_size, std_init=args.noisy_std)
-      self.fc_h_a = NoisyLinear(2560, args.hidden_size, std_init=args.noisy_std)
-    else:
-      self.conv1 = nn.Conv2d(args.history_length, 32, 8, stride=4, padding=1)
-      self.conv2 = nn.Conv2d(32, 64, 4, stride=2)
-      self.conv3 = nn.Conv2d(64, 64, 3)
-      self.fc_h_v = NoisyLinear(3136, args.hidden_size, std_init=args.noisy_std)
-      self.fc_h_a = NoisyLinear(3136, args.hidden_size, std_init=args.noisy_std)
+    if args.use_encoder == 0:
+      self.view = 3136
+      self.stride1, self.stride2 = 4, 2
+      self.out1, self.out2, self.out3 = 8, 4, 3
+    elif args.use_encoder == 1:
+      self.view = 2560
+      self.stride1, self.stride2 = 1, 1
+      self.out1, self.out2, self.out3 = 1, 1, 1
+    elif args.use_encoder == 2:
+      self.view = 64
+      self.stride1, self.stride2 = 4, 2 
+      self.out1, self.out2, self.out3 = 8, 4, 3
+    self.conv1 = nn.Conv2d(args.history_length, 32, self.out1, stride=self.stride1)
+    self.conv2 = nn.Conv2d(32, 64, self.out2, stride=self.stride2)
+    self.conv3 = nn.Conv2d(64, 64, self.out3)
+    self.fc_h_v = NoisyLinear(self.view, args.hidden_size, std_init=args.noisy_std)
+    self.fc_h_a = NoisyLinear(self.view, args.hidden_size, std_init=args.noisy_std)
     self.fc_z_v = NoisyLinear(args.hidden_size, self.atoms, std_init=args.noisy_std)
     self.fc_z_a = NoisyLinear(args.hidden_size, action_space * self.atoms, std_init=args.noisy_std)
 
@@ -66,10 +70,7 @@ class DQN(nn.Module):
     x = F.relu(self.conv1(x))
     x = F.relu(self.conv2(x))
     x = F.relu(self.conv3(x))
-    if self.useVLAE:
-      x = x.view(-1, 2560)
-    else:
-      x = x.view(-1, 3136)
+    x = x.view(-1, self.view)
     v = self.fc_z_v(F.relu(self.fc_h_v(x)))
     a = self.fc_z_a(F.relu(self.fc_h_a(x)))
     v, a = v.view(-1, 1, self.atoms), a.view(-1, self.action_space, self.atoms)

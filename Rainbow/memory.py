@@ -4,8 +4,6 @@ import torch
 import numpy as np
 
 Transition = namedtuple('Transition', ('timestep', 'state', 'action', 'reward', 'nonterminal'))
-blank_trans = Transition(0, torch.zeros(84, 84, dtype=torch.uint8), None, 0, False)
-blank_transVLAE = Transition(0, torch.zeros(1, 40, dtype=torch.uint8), None, 0, False)
 
 class SegmentTree():
   def __init__(self, size):
@@ -66,7 +64,16 @@ class ReplayMemory():
     self.priority_exponent = args.priority_exponent
     self.t = 0
     self.transitions = SegmentTree(capacity)
-    self.useVLAE = args.use_encoder
+    if args.use_encoder == 0:
+       self.xdim = 84
+       self.ydim = 84
+    elif args.use_encoder == 1:
+       self.xdim = 1
+       self.ydim = 40
+    elif args.use_encoder == 2:
+       self.xdim = 40
+       self.ydim = 40
+    self.blank_trans = Transition(0, torch.zeros(self.xdim, self.ydim, dtype=torch.uint8), None, 0, False)
 
   def append(self, state, action, reward, terminal):
     state = state[-1].to(dtype=torch.uint8, device=torch.device('cpu'))
@@ -78,20 +85,14 @@ class ReplayMemory():
     transition[self.history - 1] = self.transitions.get(idx)
     for t in range(self.history - 2, -1, -1):
       if transition[t + 1].timestep == 0:
-        if self.useVLAE:
-          transition[t] = blank_transVLAE
-        else:
-          transition[t] = blank_trans
+        transition[t] = blank_trans
       else:
         transition[t] = self.transitions.get(idx - self.history + 1 + t)
     for t in range(self.history, self.history + self.n):
       if transition[t - 1].nonterminal:
         transition[t] = self.transitions.get(idx - self.history + 1 + t)
       else:
-        if self.useVLAE:
-          transition[t] = blank_transVLAE
-        else:
-          transition[t] = blank_trans
+        blank_trans
     return transition
 
   def _get_sample_from_segment(self, segment, i):
@@ -102,13 +103,8 @@ class ReplayMemory():
       if (self.transitions.index - idx) % self.capacity > self.n and (idx - self.transitions.index) % self.capacity >= self.history and prob != 0:
         valid = True
     transition = self._get_transition(idx)
-    if self.useVLAE:
-      state = torch.stack([trans.state for trans in transition[:self.history]]).to(dtype=torch.float32, device=self.device)
-      next_state = torch.stack([trans.state for trans in transition[self.n:self.n + self.history]]).to(dtype=torch.float32, device=self.device)
-    else:
-      state = torch.stack([trans.state for trans in transition[:self.history]]).to(dtype=torch.float32, device=self.device).div_(255)
-      next_state = torch.stack([trans.state for trans in transition[self.n:self.n + self.history]]).to(dtype=torch.float32, device=self.device).div_(255)
-
+    state = torch.stack([trans.state for trans in transition[:self.history]]).to(dtype=torch.float32, device=self.device)
+    next_state = torch.stack([trans.state for trans in transition[self.n:self.n + self.history]]).to(dtype=torch.float32, device=self.device)
     action = torch.tensor([transition[self.history - 1].action], dtype=torch.int64, device=self.device)
     R = torch.tensor([sum(self.discount ** n * transition[self.history + n - 1].reward for n in range(self.n))], dtype=torch.float32, device=self.device)
     nonterminal = torch.tensor([transition[self.history + self.n - 1].nonterminal], dtype=torch.float32, device=self.device)
@@ -143,16 +139,10 @@ class ReplayMemory():
     prev_timestep = self.transitions.data[self.current_idx].timestep
     for t in reversed(range(self.history - 1)):
       if prev_timestep == 0:
-        if self.useVLAE:
-          state_stack[t] = blank_transVLAE.state
-        else:
-          state_stack[t] = blank_trans.state
+        state_stack[t] = blank_trans.state
       else:
         state_stack[t] = self.transitions.data[self.current_idx + t - self.history + 1].state
         prev_timestep -= 1
-    if self.useVLAE:
-      state = torch.stack(state_stack, 0).to(dtype=torch.float32, device=self.device)
-    else:
-      state = torch.stack(state_stack, 0).to(dtype=torch.float32, device=self.device).div_(255)
+    state = torch.stack(state_stack, 0).to(dtype=torch.float32, device=self.device)
     self.current_idx += 1
     return state

@@ -38,7 +38,7 @@ parser.add_argument('--evaluation-episodes', type=int, default=10, metavar='N', 
 parser.add_argument('--evaluation-size', type=int, default=500, metavar='N', help='Number of transitions to use for validating Q')
 parser.add_argument('--log-interval', type=int, default=25000, metavar='STEPS', help='Number of training steps between logging status')
 parser.add_argument('--render', action='store_true', help='Display screen (testing only)')
-parser.add_argument('--use-encoder', action='store_false', help='Use VLAE')
+parser.add_argument('--use-encoder', type=int, default = 0, help='0 - pixel, 1 - VLAE, 2 - pixel+VLAE')
 
 args = parser.parse_args()
 print(' ' * 26 + 'Options')
