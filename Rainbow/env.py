@@ -3,11 +3,10 @@ import random
 import atari_py
 import torch
 import cv2
-#
-from vlae.vladder import VLadder
 import numpy as np
 import os
-#
+
+from vlae.vladder import VLadder
 from vlae.dataset import AtariDataset
 
 class Env():
@@ -27,16 +26,17 @@ class Env():
     self.window = args.history_length
     self.state_buffer = deque([], maxlen=args.history_length)
     self.training = True
-    #
-    self.dataset = AtariDataset(db_path='')
-    #
-    self.network = VLadder(self.dataset, file_path='vlae/models/', name='', reg='kl', batch_size=100, restart=False)
 
-# def _get_state(self):
-#    state = cv2.resize(self.ale.getScreenGrayscale(), (84, 84), interpolation=cv2.INTER_LINEAR)
-#    return torch.tensor(state, dtype=torch.float32, device=self.device).div_(255)
+    self.useVLAE = args.use_encoder
+    if self.useVLAE:
+      self.dataset = AtariDataset(db_path='')
+      self.network = VLadder(self.dataset, file_path='vlae/models/', name='', reg='kl', batch_size=100, restart=False)
 
   def _get_state(self):
+    state = cv2.resize(self.ale.getScreenGrayscale(), (84, 84), interpolation=cv2.INTER_LINEAR)
+    return torch.tensor(state, dtype=torch.float32, device=self.device).div_(255)
+
+  def _get_stateVLAE(self):
     state = self.ale.getScreenRGB()
     state = cv2.resize(state, (96, 96), interpolation=cv2.INTER_LINEAR)
     state = self.network.get_latent_codes(np.reshape(state,(1,96,96,3)))
@@ -45,8 +45,10 @@ class Env():
 
   def _reset_buffer(self):
     for _ in range(self.window):
-      # self.state_buffer.append(torch.zeros(84, 84, device=self.device)
-      self.state_buffer.append(torch.zeros(1, 40, device=self.device))
+      if self.useVLAE:
+        self.state_buffer.append(torch.zeros(1, 40, device=self.device))
+      else:
+        self.state_buffer.append(torch.zeros(84, 84, device=self.device))
 
   def reset(self):
     if self.life_termination:
@@ -59,21 +61,32 @@ class Env():
         self.ale.act(0)
         if self.ale.game_over():
           self.ale.reset_game()
-    observation = self._get_state()
+    if self.useVLAE:
+      observation = self._get_stateVLAE()
+    else:
+      observation = self._get_state()
     self.state_buffer.append(observation)
     self.lives = self.ale.lives()
     return torch.stack(list(self.state_buffer), 0)
 
   def step(self, action):
-    # frame_buffer = torch.zeros(2, 84, 84, device=self.device)
-    frame_buffer = torch.zeros(2, 1, 40, device=self.device)
+    if self.useVLAE:
+      frame_buffer = torch.zeros(2, 1, 40, device=self.device)
+    else:
+      frame_buffer = torch.zeros(2, 84, 84, device=self.device)
     reward, done = 0, False
     for t in range(4):
       reward += self.ale.act(self.actions.get(action))
       if t == 2:
-        frame_buffer[0] = self._get_state()
+        if self.useVLAE:
+          frame_buffer[0] = self._get_stateVLAE()
+        else:
+          frame_buffer[0] = self._get_state()
       elif t == 3:
-        frame_buffer[1] = self._get_state()
+        if self.useVLAE:
+          frame_buffer[1] = self._get_stateVLAE()
+        else:
+          frame_buffer[1] = self._get_state()
       done = self.ale.game_over()
       if done:
         break

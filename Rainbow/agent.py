@@ -54,7 +54,7 @@ class Agent():
       pns_a = pns[range(self.batch_size), argmax_indices_ns]
       Tz = returns.unsqueeze(1) + nonterminals * (self.discount ** self.n) * self.support.unsqueeze(0)
       Tz = Tz.clamp(min=self.Vmin, max=self.Vmax)
-      b = (Tz - self.Vmin) / self.delta_z  # b = (Tz - Vmin) / Δz
+      b = (Tz - self.Vmin) / self.delta_z
       l, u = b.floor().to(torch.int64), b.ceil().to(torch.int64)
       l[(u > 0) * (l == u)] -= 1
       u[(l < (self.atoms - 1)) * (l == u)] += 1

@@ -7,10 +7,10 @@ from env import Env
 
 Ts, rewards, Qs, best_avg_reward = [], [], [], -1e10
 
-# def test(args, T, dqn, val_mem, evaluate=False)
+
 def test(args, T, dqn, val_mem, env, evaluate=False):
   global Ts, rewards, Qs, best_avg_reward
-  # env = Env(args)
+
   env.eval()
   Ts.append(T)
   T_rewards, T_Qs = [], []
@@ -28,7 +28,7 @@ def test(args, T, dqn, val_mem, env, evaluate=False):
         T_rewards.append(reward_sum)
         break
   env.close()
-  #
+
   env.train()
   for state in val_mem:
     T_Qs.append(dqn.evaluate_q(state))
