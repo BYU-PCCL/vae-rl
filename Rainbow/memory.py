@@ -85,14 +85,14 @@ class ReplayMemory():
     transition[self.history - 1] = self.transitions.get(idx)
     for t in range(self.history - 2, -1, -1):
       if transition[t + 1].timestep == 0:
-        transition[t] = blank_trans
+        transition[t] = self.blank_trans
       else:
         transition[t] = self.transitions.get(idx - self.history + 1 + t)
     for t in range(self.history, self.history + self.n):
       if transition[t - 1].nonterminal:
         transition[t] = self.transitions.get(idx - self.history + 1 + t)
       else:
-        blank_trans
+        transition[t] = self.blank_trans
     return transition
 
   def _get_sample_from_segment(self, segment, i):
@@ -139,7 +139,7 @@ class ReplayMemory():
     prev_timestep = self.transitions.data[self.current_idx].timestep
     for t in reversed(range(self.history - 1)):
       if prev_timestep == 0:
-        state_stack[t] = blank_trans.state
+        state_stack[t] = self.blank_trans.state
       else:
         state_stack[t] = self.transitions.data[self.current_idx + t - self.history + 1].state
         prev_timestep -= 1

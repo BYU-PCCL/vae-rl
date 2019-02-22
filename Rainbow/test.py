@@ -36,8 +36,8 @@ def test(args, T, dqn, val_mem, env, evaluate=False):
   if not evaluate:
     rewards.append(T_rewards)
     Qs.append(T_Qs)
-    _plot_line(Ts, rewards, 'Reward', path='results')
-    _plot_line(Ts, Qs, 'Q', path='results')
+    _plot_line(Ts, rewards, "Reward_{}".format(args.output_name), path='results')
+    _plot_line(Ts, Qs, "Q_{}".format(args.output_name), path='results')
     if avg_reward > best_avg_reward:
       best_avg_reward = avg_reward
       dqn.save('results')
