@@ -64,15 +64,12 @@ class ReplayMemory():
     self.priority_exponent = args.priority_exponent
     self.t = 0
     self.transitions = SegmentTree(capacity)
-    if args.use_encoder == 0:
+    if args.use_encoder == 0 or args.use_encoder == 2:
        self.xdim = 84
        self.ydim = 84
     elif args.use_encoder == 1:
        self.xdim = 1
-       self.ydim = 40
-    elif args.use_encoder == 2:
-       self.xdim = 40
-       self.ydim = 40
+       self.ydim = 84
     self.blank_trans = Transition(0, torch.zeros(self.xdim, self.ydim, dtype=torch.uint8), None, 0, False)
 
   def append(self, state, action, reward, terminal):

@@ -46,27 +46,43 @@ class DQN(nn.Module):
     super().__init__()
     self.atoms = args.atoms
     self.action_space = action_space
-    if args.use_encoder == 0:
+    if args.use_encoder == 0 or args.use_encoder == 2:
       self.view = 3136
       self.stride1, self.stride2 = 4, 2
       self.out1, self.out2, self.out3 = 8, 4, 3
     elif args.use_encoder == 1:
-      self.view = 2560
+      self.view = 5376
       self.stride1, self.stride2 = 1, 1
       self.out1, self.out2, self.out3 = 1, 1, 1
-    elif args.use_encoder == 2:
-      self.view = 64
-      self.stride1, self.stride2 = 4, 2 
-      self.out1, self.out2, self.out3 = 8, 4, 3
-    self.conv1 = nn.Conv2d(args.history_length, 32, self.out1, stride=self.stride1)
+    self.use_convcoord = args.use_convcord
+    if self.use_convcord:
+      self.conv1 = nn.Conv2d(args.history_length + 2, 32, self.out1, stride=self.stride1)
+    else:
+      self.conv1 = nn.Conv2d(args.history_length, 32, self.out1, stride=self.stride1)
     self.conv2 = nn.Conv2d(32, 64, self.out2, stride=self.stride2)
     self.conv3 = nn.Conv2d(64, 64, self.out3)
+    self.device = args.device
     self.fc_h_v = NoisyLinear(self.view, args.hidden_size, std_init=args.noisy_std)
     self.fc_h_a = NoisyLinear(self.view, args.hidden_size, std_init=args.noisy_std)
     self.fc_z_v = NoisyLinear(args.hidden_size, self.atoms, std_init=args.noisy_std)
     self.fc_z_a = NoisyLinear(args.hidden_size, action_space * self.atoms, std_init=args.noisy_std)
 
+  def add_coordconv(self, x):
+    batch, _, h, w = x.size()
+    row = torch.arange(w)
+
+    j = row.repeat(h, 1)
+    i = torch.t(j)
+    i, j = i.to(device=self.device).type(torch.FloatTensor), j.to(device=self.device).type(torch.FloatTensor)
+    i = 2. * (torch.reshape(i, (1, 1, h, w)) / (h - 1)) - 1
+    j = 2. * (torch.reshape(j, (1, 1, h, w)) / (w - 1)) - 1
+    if batch > 1:
+      i, j = i.repeat(batch, 1, 1, 1), j.repeat(batch, 1, 1, 1)
+    return torch.cat((x, i.to(device=self.device), j.to(device=self.device)), 1)
+
   def forward(self, x, log=False):
+    if self.use_convcord:
+      x = self.add_coordconv(x)
     x = F.relu(self.conv1(x))
     x = F.relu(self.conv2(x))
     x = F.relu(self.conv3(x))

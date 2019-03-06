@@ -26,10 +26,10 @@ class VLadder(Network):
         # Configurations
         if self.name == "vladder_celebA" or self.name == "vladder_atari":
             self.cs = [3, 64, 128, 256, 512, 1024]
-            self.ladder0_dim = 10
-            self.ladder1_dim = 10
-            self.ladder2_dim = 10
-            self.ladder3_dim = 10
+            self.ladder0_dim = 21
+            self.ladder1_dim = 21
+            self.ladder2_dim = 21
+            self.ladder3_dim = 21
             self.num_layers = 4
             loss_ratio = 0.5
             layers = LargeLayers(self)

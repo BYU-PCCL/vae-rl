@@ -31,15 +31,12 @@ class Env():
     if self.useVLAE != 0:
       self.dataset = AtariDataset(db_path='')
       self.network = VLadder(self.dataset, file_path='vlae/models/', name='', reg='kl', batch_size=100, restart=False)
-    if self.useVLAE == 0:
+    if self.useVLAE == 0 or self.useVLAE == 2:
        self.xdim = 84
        self.ydim = 84
     elif self.useVLAE == 1:
        self.xdim = 1
-       self.ydim = 40
-    elif self.useVLAE == 2:
-       self.xdim = 40
-       self.ydim = 40
+       self.ydim = 84
 
   def _get_state(self):
     if self.useVLAE == 0:
@@ -52,7 +49,7 @@ class Env():
     if self.useVLAE == 1:
        return state
     elif self.useVLAE == 2:
-       state2 = cv2.resize(self.ale.getScreenGrayscale(), (40, 39), interpolation=cv2.INTER_LINEAR)
+       state2 = cv2.resize(self.ale.getScreenGrayscale(), (84, 83), interpolation=cv2.INTER_LINEAR)
        state2 = torch.tensor(state2, dtype=torch.float32, device=self.device)
        return torch.cat((state2, state), 0)
 
