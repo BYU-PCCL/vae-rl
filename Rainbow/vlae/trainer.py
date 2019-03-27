@@ -1,7 +1,7 @@
-from vlae.visualize import *
+from visualize import *
 import time
-from vlae.glob import glob
-from vlae.dataset.dataset_atari import AtariDataset
+from glob import glob
+from dataset.dataset_atari import AtariDataset
 
 
 class NoisyTrainer:
@@ -44,7 +44,7 @@ class NoisyTrainer:
         # else:
         #     noisy_input[:, removed_left:removed_right, removed_top:removed_bottom, :] = \
         #         np.ones((self.batch_size, removed_width, removed_height, self.data_dims[-1]), dtype=np.float)
-	return np.clip(noisy_input, a_min=self.dataset.range[0], a_max=self.dataset.range[1])
+        return np.clip(noisy_input, a_min=self.dataset.range[0], a_max=self.dataset.range[1])
 
     def train(self):
         # Visualization
@@ -61,7 +61,7 @@ class NoisyTrainer:
             images = self.dataset.next_batch(self.batch_size)
             noisy_input = self.get_noisy_input(images)
             recon_loss, reg_loss, latent = self.network.train(noisy_input, images)
-	    pth = self.file_path + "vladder_"+self.args.dataset+'/'
+            pth = self.file_path + "vladder_"+self.args.dataset+'/'
             if iteration % 20 == 0:
                 print("Iteration %d: Reconstruction loss %f, Regularization loss %f, time per iter %fs" %
                       (iteration, recon_loss, reg_loss, time.time() - iter_time))
@@ -70,7 +70,7 @@ class NoisyTrainer:
                 with open(pth+"vladder_"+self.args.dataset+"_loss"+".txt", 'a') as f:
                     f.write("Iteration %d: Reconstruction loss %f, Regularization loss %f, time per iter %fs\n" %
                       (iteration, recon_loss, reg_loss, time.time() - iter_time))
-		np.savetxt(pth+"vladder_"+self.args.dataset+"_latent"+".txt", latent[0])
+                np.savetxt(pth+"vladder_"+self.args.dataset+"_latent"+".txt", latent[0])
 
 
             if iteration % self.args.vis_frequency == 0:
@@ -153,15 +153,15 @@ class NoisyTrainer:
             plt.pause(1)
 
     def output_codes(self):
-	db_path = "../../../../not_backed_up/atarigames/all_games_uneven/"
+        db_path = "../../../../not_backed_up/atarigames/all_games_uneven/"
         for folder in glob(db_path+"*/"):
              for game in glob(folder+"*/"):
                   for i in range(1, 11):
                        for file_ in glob(game+"game_{}/".format(i)+"*.npy"):
-		           image = get_image(file_)
-			   latent = self.network.get_latent_codes(np.reshape(image,(1,96,96,3)))
-			   pth = file_[:-6]+"latent.txt"
-			   np.savetxt(pth, latent)
+                           image = get_image(file_)
+                           latent = self.network.get_latent_codes(np.reshape(image,(1,96,96,3)))
+                           pth = file_[:-6]+"latent.txt"
+                           np.savetxt(pth, latent)
 
 def get_image(image_path):
     image = np.load(image_path)

@@ -5,10 +5,10 @@ import numpy as np
 
 
 class VLadder(Network):
-    def __init__(self, dataset, file_path, name=None, reg='kl', batch_size=100, restart=False):
+    def __init__(self, dataset, file_path, name=None, reg='kl', batch_size=100, restart=False, add_coords=False):
         Network.__init__(self, dataset, batch_size, file_path)
         if name is None or name == '':
-            self.name = "vladder_%s" % dataset.name
+            self.name = "vladder_%s_cconv" % dataset.name
         else:
             self.name = name
         self.dataset = dataset
@@ -24,15 +24,15 @@ class VLadder(Network):
             print("Unknown regularization, supported: kl, mmd")
 
         # Configurations
-        if self.name == "vladder_celebA" or self.name == "vladder_atari":
-            self.cs = [3, 64, 128, 256, 512, 1024]
+        if self.name == "vladder_celebA" or self.name == "vladder_atari_cconv":
+            self.cs = [4, 64, 128, 256, 512, 1024]
             self.ladder0_dim = 21
             self.ladder1_dim = 21
             self.ladder2_dim = 21
             self.ladder3_dim = 21
             self.num_layers = 4
             loss_ratio = 0.5
-            layers = LargeLayers(self)
+            layers = LargeLayers(self, add_coords)
             self.do_generate_conditional_samples = True
             self.do_generate_samples = True
         elif self.name == "vladder_lsun":
@@ -76,7 +76,10 @@ class VLadder(Network):
 
         # Define inference network
         self.regularization = 0.0
-        input_size = tf.shape(self.input_placeholder)[0]
+        if self.input_placeholder.get_shape().as_list()[0] is None:
+            input_size = 1
+        else:
+            input_size = self.input_placeholder.get_shape().as_list()[0]
         if self.ladder0_dim > 0:
             self.iladder0_mean, self.iladder0_stddev = layers.ladder0(self.input_placeholder, is_training=self.is_training)
             self.iladder0_stddev += 0.001

@@ -60,11 +60,11 @@ class Env():
   def reset(self):
     if self.life_termination:
       self.life_termination = False
-      self.ale.act(0)
+      self.ale.act(0) # Literally do nothing.
     else:
       self._reset_buffer()
       self.ale.reset_game()
-      for _ in range(random.randrange(30)):
+      for _ in range(random.randrange(30)): # Do nothing up to 30 times (random) - introduces variety
         self.ale.act(0)
         if self.ale.game_over():
           self.ale.reset_game()
@@ -74,6 +74,7 @@ class Env():
     return torch.stack(list(self.state_buffer), 0)
 
   def step(self, action):
+    # Repeats action 4 times. Max pools over last 2 frames.
     frame_buffer = torch.zeros(2, self.xdim, self.ydim, device=self.device)
     reward, done = 0, False
     for t in range(4):

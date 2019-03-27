@@ -2,6 +2,7 @@ from visualize import *
 import time
 from glob import glob
 from dataset.dataset_atari import AtariDataset
+import numpy as np
 
 
 class NoisyTrainer:
@@ -61,7 +62,7 @@ class NoisyTrainer:
             images = self.dataset.next_batch(self.batch_size)
             noisy_input = self.get_noisy_input(images)
             recon_loss, reg_loss, latent = self.network.train(noisy_input, images)
-            pth = self.file_path + "vladder_"+self.args.dataset+'/'
+            pth = self.file_path + "vladder_"+self.args.dataset+'_cconv/'
             if iteration % 20 == 0:
                 print("Iteration %d: Reconstruction loss %f, Regularization loss %f, time per iter %fs" %
                       (iteration, recon_loss, reg_loss, time.time() - iter_time))
@@ -70,7 +71,6 @@ class NoisyTrainer:
                 with open(pth+"vladder_"+self.args.dataset+"_loss"+".txt", 'a') as f:
                     f.write("Iteration %d: Reconstruction loss %f, Regularization loss %f, time per iter %fs\n" %
                       (iteration, recon_loss, reg_loss, time.time() - iter_time))
-                np.savetxt(pth+"vladder_"+self.args.dataset+"_latent"+".txt", latent[0])
 
 
             if iteration % self.args.vis_frequency == 0:
@@ -136,9 +136,13 @@ class NoisyTrainer:
         if canvas.shape[-1] == 1:
             misc.imsave(os.path.join(img_folder, 'current.png'), canvas[:, :, 0])
             misc.imsave(os.path.join(img_folder, 'epoch%d.png' % epoch), canvas[:, :, 0])
+            np.save(os.path.join(img_folder, 'current.npy'), canvas[:, :, 0])
+            np.save(misc.imsave(os.path.join(img_folder, 'epoch%d.npy' % epoch), canvas[:, :, 0]))
         else:
             misc.imsave(os.path.join(img_folder, 'current.png'), canvas)
             misc.imsave(os.path.join(img_folder, 'epoch%d.png' % epoch), canvas)
+            np.save(os.path.join(img_folder, 'current.npy'), canvas)
+            np.save(os.path.join(img_folder, 'epoch%d.npy' % epoch), canvas)
 
         if self.args.use_gui:
             if self.fig is None:
@@ -151,33 +155,3 @@ class NoisyTrainer:
                 self.ax.imshow(canvas)
             plt.draw()
             plt.pause(1)
-
-    def output_codes(self):
-        db_path = "../../../../not_backed_up/atarigames/all_games_uneven/"
-        for folder in glob(db_path+"*/"):
-             for game in glob(folder+"*/"):
-                  for i in range(1, 11):
-                       for file_ in glob(game+"game_{}/".format(i)+"*.npy"):
-                           image = get_image(file_)
-                           latent = self.network.get_latent_codes(np.reshape(image,(1,96,96,3)))
-                           pth = file_[:-6]+"latent.txt"
-                           np.savetxt(pth, latent)
-
-def get_image(image_path):
-    image = np.load(image_path)
-    image = AtariDataset.downsample_image(image)
-    temp_img = image.copy()
-    x, y, z = image.shape
-    x, y = np.float(96 - x), np.float(96 - y)
-    if x % 2 == 0:
-        x1, x2 = int(x/2), int(x/2)
-    else:
-        x1, x2 = int(np.floor(x/2)), int(np.ceil(x/2))
-    if y % 2 == 0:
-        y1, y2 = int(y/2), int(y/2)
-    else:
-        y1, y2 = int(np.floor(y/2)), int(np.ceil(y/2))
-    image = np.pad(image, ((x1,x2),(y1,y2),(0,0)),'edge')
-    image = image.astype('float32')
-    image = image / 127.5 - 1.0
-    return image

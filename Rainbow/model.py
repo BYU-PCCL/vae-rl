@@ -54,8 +54,8 @@ class DQN(nn.Module):
       self.view = 5376
       self.stride1, self.stride2 = 1, 1
       self.out1, self.out2, self.out3 = 1, 1, 1
-    self.use_convcoord = args.use_convcord
-    if self.use_convcord:
+    self.use_convcoord = args.use_convcoord
+    if self.use_convcoord:
       self.conv1 = nn.Conv2d(args.history_length + 2, 32, self.out1, stride=self.stride1)
     else:
       self.conv1 = nn.Conv2d(args.history_length, 32, self.out1, stride=self.stride1)
@@ -81,7 +81,7 @@ class DQN(nn.Module):
     return torch.cat((x, i.to(device=self.device), j.to(device=self.device)), 1)
 
   def forward(self, x, log=False):
-    if self.use_convcord:
+    if self.use_convcoord:
       x = self.add_coordconv(x)
     x = F.relu(self.conv1(x))
     x = F.relu(self.conv2(x))
@@ -98,6 +98,6 @@ class DQN(nn.Module):
     return q
 
   def reset_noise(self):
-    for name, module in self.named_children():
+    for name, module in self.named_children(): # goes through all the children modules.
       if 'fc' in name:
         module.reset_noise()

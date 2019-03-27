@@ -1,4 +1,4 @@
-from vlae.abstract_network import *
+from abstract_network import *
 import os
 import scipy.misc as misc
 

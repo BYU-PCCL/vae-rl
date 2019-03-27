@@ -40,9 +40,9 @@ else:
     plt.show()
 
 import os
-from vlae.dataset import *
-from vlae.vladder import VLadder
-from vlae.trainer import NoisyTrainer
+from dataset import *
+from vladder import VLadder
+from trainer import NoisyTrainer
 import numpy as np
 
 if args.gpus is not '':
@@ -62,7 +62,7 @@ else:
     print("Unknown dataset")
     exit(-1)
 
-model = VLadder(dataset, file_path=fpath, name=args.netname, reg=args.reg, batch_size=args.batch_size, restart=not args.no_train)
+model = VLadder(dataset, file_path=fpath, name=args.netname, reg=args.reg, batch_size=args.batch_size, restart=args.no_train)
 trainer = NoisyTrainer(model, dataset, args)
 if args.no_train:
     trainer.output_codes()

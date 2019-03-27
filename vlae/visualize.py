@@ -1,6 +1,7 @@
 from abstract_network import *
 import os
 import scipy.misc as misc
+import numpy as np
 
 class Visualizer:
     def __init__(self, network):
@@ -29,16 +30,20 @@ class Visualizer:
         self.save_epoch += 1
 
     def arr_to_file(self, arr):
-        img_folder = self.network.file_path + self.network.name + "_new/" + self.name
+        img_folder = self.network.file_path + self.network.name + "_reconstructions/" + self.name
         if not os.path.isdir(img_folder):
             os.makedirs(img_folder)
 
         if arr.shape[-1] == 1:
             misc.imsave(os.path.join(img_folder, 'current.png'), arr[:, :, 0])
             misc.imsave(os.path.join(img_folder, 'epoch%d.png' % self.save_epoch), arr[:, :, 0])
+            np.save(os.path.join(img_folder, 'current.npy'), arr[:, :, 0])
+            np.save(os.path.join(img_folder, 'epoch%d.npy' % self.save_epoch), arr[:, :, 0])
         else:
             misc.imsave(os.path.join(img_folder, 'current.png'), arr)
             misc.imsave(os.path.join(img_folder, 'epoch%d.png' % self.save_epoch), arr)
+            np.save(os.path.join(img_folder, 'current.npy'), arr)
+            np.save(os.path.join(img_folder, 'epoch%d.npy' % self.save_epoch), arr)
         self.save_epoch += 1
 
 
@@ -121,7 +126,7 @@ class SampleVisualizer(Visualizer):
             self.fig, self.ax = plt.subplots()
         samples = self.network.generate_samples()
         if samples is not None:
-            samples = self.dataset.display(samples)
+            samples = self.dataset.display(samples) # This is where it pushes it to be positive.
             width = samples.shape[1]
             height = samples.shape[2]
             channel = samples.shape[3]

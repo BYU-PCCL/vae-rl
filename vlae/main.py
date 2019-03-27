@@ -25,6 +25,8 @@ parser.add_argument('--vis_frequency', type=int, default=1000,
                     help='How many train batches before we perform visualization')
 parser.add_argument('--file_path', type=str, default='models/', help='Where we want to save images and loss values')
 parser.add_argument('--num_layers', type=int, default=4, help='Total number of layers in the encoder')
+parser.add_argument('--transition', type=bool, default=False)
+parser.add_argument('--convcoord', type=bool, default=False)
 
 args = parser.parse_args()
 fpath = args.file_path
@@ -57,12 +59,12 @@ elif args.dataset == 'celebA':
 elif args.dataset == 'svhn':
     dataset = SVHNDataset(db_path=args.db_path)
 elif args.dataset == 'atari':
-    dataset = AtariDataset(db_path=args.db_path)
+    dataset = AtariDataset(transition=args.transition, db_path=args.db_path)
 else:
     print("Unknown dataset")
     exit(-1)
 
-model = VLadder(dataset, file_path=fpath, name=args.netname, reg=args.reg, batch_size=args.batch_size, restart=not args.no_train)
+model = VLadder(dataset, file_path=fpath, name=args.netname, reg=args.reg, batch_size=args.batch_size, restart=args.no_train, add_coords=args.convcoord)
 trainer = NoisyTrainer(model, dataset, args)
 if args.no_train:
     trainer.output_codes()

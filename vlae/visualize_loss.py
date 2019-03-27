@@ -1,7 +1,7 @@
 import pandas as pd
 from matplotlib import pyplot as plt
 
-df = pd.read_csv('models/vladder_atari/vladder_atari_loss.txt', sep=" ", header=None)
+df = pd.read_csv('models/vladder_atari_cconv/vladder_atari_loss.txt', sep=" ", header=None)
 for val in [0, 1, 1, 2, 2, 3, 3, 3, 3]:
 	df = df.drop(df.columns[val], axis=1)
 df.columns = ["Iteration", "Reconstruction", "Regularization"]

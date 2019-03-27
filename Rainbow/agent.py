@@ -8,7 +8,7 @@ from model import DQN
 class Agent():
   def __init__(self, args, env):
     self.action_space = env.action_space()
-    self.atoms = args.atoms
+    self.atoms = args.atoms # size of value distribution.
     self.Vmin = args.V_min
     self.Vmax = args.V_max
     self.support = torch.linspace(args.V_min, args.V_max, self.atoms).to(device=args.device)
@@ -17,15 +17,15 @@ class Agent():
     self.n = args.multi_step
     self.discount = args.discount
 
-    self.online_net = DQN(args, self.action_space).to(device=args.device)
+    self.online_net = DQN(args, self.action_space).to(device=args.device) # greedily selects the action.
     if args.model and os.path.isfile(args.model):
-      self.online_net.load_state_dict(torch.load(args.model, map_location='cpu'))
+      self.online_net.load_state_dict(torch.load(args.model, map_location='cpu')) # state_dict: python dictionary that maps each layer to its parameters.
     self.online_net.train()
 
-    self.target_net = DQN(args, self.action_space).to(device=args.device)
-    self.update_target_net()
+    self.target_net = DQN(args, self.action_space).to(device=args.device) # use to compute target q-values.
+    self.update_target_net() # sets it to the parameters of the online network.
     self.target_net.train()
-    for param in self.target_net.parameters():
+    for param in self.target_net.parameters(): # not updated through backpropagation.
       param.requires_grad = False
 
     self.optimiser = optim.Adam(self.online_net.parameters(), lr=args.lr, eps=args.adam_eps)
@@ -42,14 +42,15 @@ class Agent():
 
   def learn(self, mem):
     idxs, states, actions, returns, next_states, nonterminals, weights = mem.sample(self.batch_size)
-    log_ps = self.online_net(states, log=True)
-    log_ps_a = log_ps[range(self.batch_size), actions]
+    log_ps = self.online_net(states, log=True) # state log probabilities
+    log_ps_a = log_ps[range(self.batch_size), actions] # get it for the batch size & current actions
 
     with torch.no_grad():
-      pns = self.online_net(next_states)
-      dns = self.support.expand_as(pns) * pns
-      argmax_indices_ns = dns.sum(2).argmax(1)
-      self.target_net.reset_noise()
+      pns = self.online_net(next_states) # next state probabilities
+      # gets distribution 
+      dns = self.support.expand_as(pns) * pns # expand_as: expands tensor to size of tensor
+      argmax_indices_ns = dns.sum(2).argmax(1) # argmax selection
+      self.target_net.reset_noise() 
       pns = self.target_net(next_states)
       pns_a = pns[range(self.batch_size), argmax_indices_ns]
       Tz = returns.unsqueeze(1) + nonterminals * (self.discount ** self.n) * self.support.unsqueeze(0)
@@ -68,7 +69,7 @@ class Agent():
     self.online_net.zero_grad()
     (weights * loss).mean().backward()
     self.optimiser.step()
-    mem.update_priorities(idxs, loss.detach().cpu().numpy())
+    mem.update_priorities(idxs, loss.detach().cpu().numpy()) # update priorities of sampled transitions
 
   def update_target_net(self):
     self.target_net.load_state_dict(self.online_net.state_dict())

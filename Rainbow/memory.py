@@ -5,6 +5,7 @@ import numpy as np
 
 Transition = namedtuple('Transition', ('timestep', 'state', 'action', 'reward', 'nonterminal'))
 
+# parent node values are sum/max of children.
 class SegmentTree():
   def __init__(self, size):
     self.index = 0
@@ -73,7 +74,7 @@ class ReplayMemory():
     self.blank_trans = Transition(0, torch.zeros(self.xdim, self.ydim, dtype=torch.uint8), None, 0, False)
 
   def append(self, state, action, reward, terminal):
-    state = state[-1].to(dtype=torch.uint8, device=torch.device('cpu'))
+    state = state[-1].to(dtype=torch.uint8, device=torch.device('cpu')) # This only stores the last frame.
     self.transitions.append(Transition(self.t, state, action, reward, not terminal), self.transitions.max)
     self.t = 0 if terminal else self.t + 1
 
@@ -100,6 +101,7 @@ class ReplayMemory():
       if (self.transitions.index - idx) % self.capacity > self.n and (idx - self.transitions.index) % self.capacity >= self.history and prob != 0:
         valid = True
     transition = self._get_transition(idx)
+    # self.history is 4. This is getting four states.
     state = torch.stack([trans.state for trans in transition[:self.history]]).to(dtype=torch.float32, device=self.device)
     next_state = torch.stack([trans.state for trans in transition[self.n:self.n + self.history]]).to(dtype=torch.float32, device=self.device)
     action = torch.tensor([transition[self.history - 1].action], dtype=torch.int64, device=self.device)
@@ -118,6 +120,7 @@ class ReplayMemory():
     capacity = self.capacity if self.transitions.full else self.transitions.index
     weights = (capacity * probs) ** -self.priority_weight
     weights = torch.tensor(weights / weights.max(), dtype=torch.float32, device=self.device)
+    # What is the size of states here? 32 * 84 * 84 * 4?
     return tree_idxs, states, actions, returns, next_states, nonterminals, weights
 
   def update_priorities(self, idxs, priorities):

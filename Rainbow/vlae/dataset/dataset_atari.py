@@ -13,22 +13,18 @@ class AtariDataset(Dataset):
         db_path = "../../../../not_backed_up/atarigames/all_games_uneven/" + db_path
         Dataset.__init__(self)
         self.data_files = []
-        """ This is just if running on a specific sub folder
-        if(len(glob(db_path+"*/"+"game_1/"))!=0):
-            for folder in glob(db_path + "*/"):
-                for i in range(1, 11):
-                    for file_ in glob(folder + "game_{}/".format(i) + "*.npy"):
-                        self.data_files.append(file_)
-        else:
-            for i in range(1, 11):
-                for file_ in glob(db_path + "game_{}/".format(i) + "*.npy"):
-                    self.data_files.append(file_)
         """
         for folder in glob(db_path+"*/"):
              for game in glob(folder+"*/"):
                   for i in range(1, 11):
                        for file_ in glob(game+"game_{}/".format(i)+"*.npy"):
                             self.data_files.append(file_)
+        """
+        for folder in ['atlantis', 'airraid', 'spaceinvaders', 'zaxxon', 'timeplot', 
+                       'gravitar', 'namethisgame', 'solaris', 'seaquest', 'riverraid']:
+          for i in range(1, 11):
+            for file_ in glob(db_path+"shooting/"+folder+"/game_{}/".format(i)+"*.npy"):
+              self.data_files.append(file_)
         np.random.shuffle(self.data_files)
         self.train_size = int(float(len(self.data_files) * 0.8))
         self.test_size = len(self.data_files) - self.train_size

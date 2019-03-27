@@ -40,7 +40,7 @@ parser.add_argument('--log-interval', type=int, default=25000, metavar='STEPS', 
 parser.add_argument('--render', action='store_true', help='Display screen (testing only)')
 parser.add_argument('--use-encoder', type=int, default = 0, help='0 - pixel, 1 - VLAE, 2 - pixel+VLAE')
 parser.add_argument('--output-name', type=str, default='', help='Name of output HTML files')
-parser.add_argument('--use-convcord', action='store_true', help='Add in coordinate convolutions')
+parser.add_argument('--use-convcoord', action='store_true', help='Add in coordinate convolutions')
 
 args = parser.parse_args()
 print(' ' * 26 + 'Options')
@@ -86,7 +86,7 @@ else:
   while T < args.T_max:
     if done:
       state, done = env.reset(), False
-    if T % args.replay_frequency == 0:
+    if T % args.replay_frequency == 0: # frequency of sampling from memory
       dqn.reset_noise()
     action = dqn.act(state)
     next_state, reward, done = env.step(action)
@@ -98,11 +98,10 @@ else:
       log('T = ' + str(T) + ' / ' + str(args.T_max))
     if T >= args.learn_start:
       mem.priority_weight = min(mem.priority_weight + priority_weight_increase, 1)
-      if T % args.replay_frequency == 0:
+      if T % args.replay_frequency == 0: # frequency of sampling from memory
         dqn.learn(mem)
       if T % args.evaluation_interval == 0:
         dqn.eval()
-        # avg_reward, av_Q = test(args, T, dqn, val_mem)
         avg_reward, avg_Q, env = test(args, T, dqn, val_mem, env)
         log('T = '+str(T)+' / '+str(args.T_max)+' | Avg. reward: '+str(avg_reward)+' | Avg. Q: '+str(avg_Q))
         dqn.train()
