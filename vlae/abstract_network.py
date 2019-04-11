@@ -4,8 +4,8 @@ import math
 import glob
 from matplotlib import pyplot as plt
 from matplotlib.patches import Ellipse
-from tensorflow.examples.tutorials.mnist import input_data
 import os, sys, shutil, re
+# Added in Coordinate Convolutions.
 from CoordConv import AddCoords, CoordConv
 
 def lrelu(x, rate=0.1):
@@ -16,10 +16,11 @@ conv2d_t = tf.contrib.layers.convolution2d_transpose
 fc_layer = tf.contrib.layers.fully_connected
 initializer = tf.random_normal_initializer(stddev=0.02)
 
+# Added in coordconv.
 def conv2d_bn_lrelu(inputs, num_outputs, kernel_size, stride, is_training=True, add_coords=False):
-    batch, x_dim, y_dim, _ = inputs.get_shape().as_list()
     if add_coords:
-        conv = AddCoords(x_dim=x_dim, y_dim=y_dim, with_r=False)(inputs)
+        _, x_dim, y_dim, _ = inputs.get_shape().as_list()
+        conv = AddCoords(x_dim=x_dim, y_dim=y_dim, with_r=False, skiptile=True)(inputs)
         conv = tf.contrib.layers.convolution2d(conv, num_outputs, kernel_size, stride, weights_initializer=initializer,
                                            weights_regularizer=tf.contrib.layers.l2_regularizer(2.5e-5), activation_fn=tf.identity)
     else:
@@ -29,24 +30,25 @@ def conv2d_bn_lrelu(inputs, num_outputs, kernel_size, stride, is_training=True, 
     conv = lrelu(conv)
     return conv
 
+# Added in coordconv.
 def conv2d_t_bn_relu(inputs, num_outputs, kernel_size, stride, is_training=True, add_coords=False):
-    batch, x_dim, y_dim, _ = inputs.get_shape().as_list()
     if add_coords:
-        conv = AddCoords(x_dim=x_dim, y_dim=y_dim, with_r=False)(inputs)
+        _, x_dim, y_dim, _ = inputs.get_shape().as_list()
+        conv = AddCoords(x_dim=x_dim, y_dim=y_dim, with_r=False, skiptile=True)(inputs)
         conv = tf.contrib.layers.convolution2d_transpose(conv, num_outputs, kernel_size, stride, weights_initializer=initializer,
                                                      weights_regularizer=tf.contrib.layers.l2_regularizer(2.5e-5), activation_fn=tf.identity)
     else:
         conv = tf.contrib.layers.convolution2d_transpose(inputs, num_outputs, kernel_size, stride, weights_initializer=initializer,
                                                      weights_regularizer=tf.contrib.layers.l2_regularizer(2.5e-5), activation_fn=tf.identity)
     conv = tf.contrib.layers.batch_norm(conv, is_training=is_training)
-    conv = tf.nn.relu(conv)
+    conv = lrelu(conv)
     return conv
 
-
+# Added in coordconv.
 def conv2d_t_bn(inputs, num_outputs, kernel_size, stride, is_training=True, add_coords=False):
-    batch, x_dim, y_dim, _ = inputs.get_shape().as_list()
     if add_coords:
-        conv = AddCoords(x_dim=x_dim, y_dim=y_dim, with_r=False)(inputs)
+        _, x_dim, y_dim, _ = inputs.get_shape().as_list()
+        conv = AddCoords(x_dim=x_dim, y_dim=y_dim, with_r=False, skiptile=True)(inputs)
         conv = tf.contrib.layers.convolution2d_transpose(conv, num_outputs, kernel_size, stride, weights_initializer=initializer,
                                                      weights_regularizer=tf.contrib.layers.l2_regularizer(2.5e-5), activation_fn=tf.identity, scope=None)
     else:
@@ -77,9 +79,9 @@ def fc_bn_relu(inputs, num_outputs, is_training=True):
 
 
 def compute_kernel(x, y):
-    x_size = x.shape[0]
-    y_size = y.shape[0]
-    dim = x.shape[1]
+    x_size = tf.shape(x)[0]
+    y_size = tf.shape(y)[0]
+    dim = tf.shape(x)[1]
     tiled_x = tf.tile(tf.reshape(x, tf.stack([x_size, 1, dim])), tf.stack([1, y_size, 1]))
     tiled_y = tf.tile(tf.reshape(y, tf.stack([1, y_size, dim])), tf.stack([x_size, 1, 1]))
     return tf.exp(-tf.reduce_mean(tf.square(tiled_x - tiled_y), axis=2) / tf.cast(dim, tf.float32))
@@ -101,10 +103,8 @@ class Network:
 
         gpu_options = tf.GPUOptions(allow_growth=True)
         self.sess = tf.InteractiveSession(config=tf.ConfigProto(gpu_options=gpu_options, allow_soft_placement=True))
-        # A unique name should be given to each instance of subclasses during initialization
         self.name = "default"
 
-        # These should be updated accordingly
         self.iteration = 0
         self.learning_rate = 0.0
         self.read_only = False
@@ -132,12 +132,14 @@ class Network:
     for each network """
     def save_network(self):
         if not self.read_only:
-            # Saver and Summary ops cannot run in GPU
             with tf.device('/cpu:0'):
                 saver = tf.train.Saver()
             self.make_model_path()
+            # if not os.path.isdir(self.file_path + "old"):
+                # os.mkdir(self.file_path + "old")
             file_name = self.file_path + self.name + "/" + self.name + ".ckpt"
             if os.path.isfile(file_name):
+                # We moved the 2 lines here.
                 if not os.path.isdir(self.file_path + "old"):
                     os.mkdir(self.file_path + "old")
                 os.rename(file_name, self.file_path + "old/" + self.name + ".ckpt")

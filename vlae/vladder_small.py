@@ -72,7 +72,7 @@ class SmallLayers:
                 print("Generative layer must have input")
                 exit(0)
             fc1 = fc_bn_relu(latent1, int(self.network.fs[2] * self.network.fs[2] * self.network.cs[2]), is_training)
-            fc1 = tf.reshape(fc1, tf.stack([fc1.shape[0], self.network.fs[2], self.network.fs[2], self.network.cs[2]]))
+            fc1 = tf.reshape(fc1, tf.stack([fc1.shapef[0], self.network.fs[2], self.network.fs[2], self.network.cs[2]]))
             conv1 = conv2d_t_bn_relu(fc1, self.network.cs[1], [4, 4], 2, is_training)
             output = tf.contrib.layers.convolution2d_transpose(conv1, self.network.data_dims[-1], [4, 4], 2, activation_fn=tf.sigmoid)
             output = (self.network.dataset.range[1] - self.network.dataset.range[0]) * output + self.network.dataset.range[0]

@@ -5,12 +5,10 @@ import numpy as np
 
 
 class VLadder(Network):
+    # Added coordconvs.
     def __init__(self, dataset, file_path, name=None, reg='kl', batch_size=100, restart=False, add_coords=False):
         Network.__init__(self, dataset, batch_size, file_path)
-        if name is None or name == '':
-            self.name = "vladder_%s_cconv" % dataset.name
-        else:
-            self.name = name
+        self.name = "vladder_atari_{}".format(name)
         self.dataset = dataset
         self.batch_size = batch_size
         self.data_dims = self.dataset.data_dims
@@ -23,67 +21,29 @@ class VLadder(Network):
         if self.reg != 'kl' and self.reg != 'mmd':
             print("Unknown regularization, supported: kl, mmd")
 
-        # Configurations
-        if self.name == "vladder_celebA" or self.name == "vladder_atari_cconv":
-            self.cs = [4, 64, 128, 256, 512, 1024]
-            self.ladder0_dim = 21
-            self.ladder1_dim = 21
-            self.ladder2_dim = 21
-            self.ladder3_dim = 21
-            self.num_layers = 4
-            loss_ratio = 0.5
-            layers = LargeLayers(self, add_coords)
-            self.do_generate_conditional_samples = True
-            self.do_generate_samples = True
-        elif self.name == "vladder_lsun":
-            self.cs = [3, 64, 128, 256, 512, 1024]
-            self.ladder0_dim = 20
-            self.ladder1_dim = 20
-            self.ladder2_dim = 20
-            self.ladder3_dim = 40
-            self.num_layers = 4
-            loss_ratio = 0.5
-            layers = LargeLayers(self)
-            self.do_generate_conditional_samples = True
-        elif self.name == "vladder_svhn":
-            self.cs = [3, 64, 128, 256, 1024]
-            self.ladder0_dim = 5
-            self.ladder1_dim = 5
-            self.ladder2_dim = 5
-            self.ladder3_dim = 10
-            self.num_layers = 4
-            loss_ratio = 8.0
-            layers = MediumLayers(self)
-            self.do_generate_conditional_samples = True
-        elif self.name == "vladder_mnist":
-            self.cs = [1, 64, 128, 1024]
-            self.ladder0_dim = 2
-            self.ladder1_dim = 2
-            self.ladder2_dim = 2
-            self.num_layers = 3
-            loss_ratio = 8.0
-            self.error_scale = 8.0
-            layers = SmallLayers(self)
-            self.do_generate_manifold_samples = True
-        else:
-            print("Unknown architecture name %s" % self.name)
-            exit(-1)
+        self.cs = [3, 64, 128, 256, 512, 1024]
+        self.ladder0_dim = 21
+        self.ladder1_dim = 21
+        self.ladder2_dim = 21
+        self.ladder3_dim = 21
+        self.num_layers = 4
+        loss_ratio = 0.5
+        # add convcoords
+        layers = LargeLayers(self, add_coords)
+        self.do_generate_conditional_samples = True
+        self.do_generate_samples = True
+
         self.self = self
 
         self.input_placeholder = tf.placeholder(shape=[None]+self.data_dims, dtype=tf.float32, name="input_placeholder")
         self.target_placeholder = tf.placeholder(shape=[None]+self.data_dims, dtype=tf.float32, name="target_placeholder")
         self.is_training = tf.placeholder(tf.bool, name='phase')
 
-        # Define inference network
         self.regularization = 0.0
-        if self.input_placeholder.get_shape().as_list()[0] is None:
-            input_size = 1
-        else:
-            input_size = self.input_placeholder.get_shape().as_list()[0]
+        input_size = tf.shape(self.input_placeholder)[0]
         if self.ladder0_dim > 0:
             self.iladder0_mean, self.iladder0_stddev = layers.ladder0(self.input_placeholder, is_training=self.is_training)
             self.iladder0_stddev += 0.001
-            # Take out this vector.
             self.iladder0_sample = self.iladder0_mean + \
                 tf.multiply(self.iladder0_stddev, tf.random_normal(tf.stack([input_size, self.ladder0_dim])))
             if self.reg == 'kl':
@@ -101,7 +61,6 @@ class VLadder(Network):
             if self.ladder1_dim > 0:
                 self.iladder1_mean, self.iladder1_stddev = layers.ladder1(self.ilatent1_hidden, is_training=self.is_training)
                 self.iladder1_stddev += 0.001
-                # Take out this vector.
                 self.iladder1_sample = self.iladder1_mean + \
                     tf.multiply(self.iladder1_stddev, tf.random_normal(tf.stack([input_size, self.ladder1_dim])))
 
@@ -120,7 +79,6 @@ class VLadder(Network):
             if self.ladder2_dim > 0:
                 self.iladder2_mean, self.iladder2_stddev = layers.ladder2(self.ilatent2_hidden, is_training=self.is_training)
                 self.iladder2_stddev += 0.001
-                # Take out this vector.
                 self.iladder2_sample = self.iladder2_mean + \
                     tf.multiply(self.iladder2_stddev, tf.random_normal(tf.stack([input_size, self.ladder2_dim])))
 
@@ -139,7 +97,6 @@ class VLadder(Network):
             if self.ladder3_dim > 0:
                 self.iladder3_mean, self.iladder3_stddev = layers.ladder3(self.ilatent3_hidden, is_training=self.is_training)
                 self.iladder3_stddev += 0.001
-                # Take out this vector.
                 self.iladder3_sample = self.iladder3_mean + \
                     tf.multiply(self.iladder3_stddev, tf.random_normal(tf.stack([input_size, self.ladder3_dim])))
 
@@ -155,8 +112,6 @@ class VLadder(Network):
 
         self.latent = tf.concat([self.iladder0_sample, self.iladder1_sample, self.iladder2_sample, self.iladder3_sample], 1)
 
-
-        # Define generative network
         self.ladders = {}
         if self.num_layers >= 4 and self.ladder3_dim > 0:
             self.ladder3_placeholder = tf.placeholder(shape=(None, self.ladder3_dim), dtype=tf.float32, name="ladder3")
@@ -216,7 +171,6 @@ class VLadder(Network):
         tf.summary.scalar("reconstruction_loss", self.reconstruction_loss)
         tf.summary.scalar("regularization_loss", self.regularization)
         tf.summary.scalar("loss", self.loss)
-	#tf.summary.tensor_summary("latent_rep", self.latent)
 
         self.merged_summary = tf.summary.merge_all()
         self.iteration = 0
@@ -224,16 +178,13 @@ class VLadder(Network):
         update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
         with tf.control_dependencies(update_ops):
             self.train_op = tf.train.AdamOptimizer(0.0002).minimize(self.loss)
-        # Set restart=True to not ignore previous checkpoint and restart training
         self.init_network(restart=restart)
         self.print_network()
-        # Set read_only=True to not overwrite previous checkpoint
         self.read_only = False
 
     def train(self, batch_input, batch_target, label=None):
         self.iteration += 1
 
-        # These are used for batch norm updates of generative model
         codes = {key: np.random.normal(size=[self.batch_size, self.ladders[key][1]]) for key in self.ladders}
         feed_dict = {self.ladders[key][0]: codes[key] for key in self.ladders}
         feed_dict.update({
@@ -273,7 +224,6 @@ class VLadder(Network):
     def generate_conditional_samples(self, condition_layer, condition_code):
         codes = {key: np.random.normal(size=[self.batch_size, self.ladders[key][1]]) for key in self.ladders}
 
-        # To avoid breaking batch normalization the fixed codes must be inserted at random locations
         random_indexes = np.random.choice(range(self.batch_size), size=8, replace=False)
         for key in codes:
             if condition_layer != key:
@@ -295,11 +245,6 @@ class VLadder(Network):
 
     def generate_manifold_samples(self, external_layer, external_code):
         codes = {key: np.random.normal(size=[external_code.shape[0], self.ladders[key][1]]) for key in self.ladders}
-        # To avoid breaking batch normalization fixed code must be inserted at random locations
-        # num_insertions = 8
-        # if num_insertions > external_code.shape[0]:
-        #     num_insertions = external_code.shape[0]
-        # random_indexes = np.random.choice(range(self.batch_size), size=num_insertions, replace=False)
         codes[external_layer] = external_code
         feed_dict = {self.ladders[key][0]: codes[key] for key in self.ladders}
         feed_dict[self.is_training] = False

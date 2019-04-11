@@ -1,17 +1,9 @@
-
-# Tested configs
-# --dataset=mnist --gpus=2 --denoise_train --plot_reconstruction
-# --dataset=mnist --gpus=1 --denoise_train --plot_reconstruction --use_gui
-# --dataset=svhn --denoise_train --plot_reconstruction --gpus=2 --db_path=dataset/svhn
-# --dataset=celebA --denoise_train --plot_reconstruction --gpus=0 --db_path=/ssd_data/CelebA
-# --dataset=mnist --gpus=2
 import argparse
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--no_train', type=bool, default=False)
 parser.add_argument('--gpus', type=str, default='')
 parser.add_argument('--dataset', type=str, default='celebA')
-parser.add_argument('--netname', type=str, default='')
 parser.add_argument('--batch_size', type=int, default=100)
 parser.add_argument('--db_path', type=str, default='')
 parser.add_argument('--reg', type=str, default='kl')
@@ -27,6 +19,7 @@ parser.add_argument('--file_path', type=str, default='models/', help='Where we w
 parser.add_argument('--num_layers', type=int, default=4, help='Total number of layers in the encoder')
 parser.add_argument('--transition', type=bool, default=False)
 parser.add_argument('--convcoord', type=bool, default=False)
+parser.add_argument('--name', type=str, default='')
 
 args = parser.parse_args()
 fpath = args.file_path
@@ -50,23 +43,15 @@ import numpy as np
 if args.gpus is not '':
     os.environ['CUDA_VISIBLE_DEVICES'] = args.gpus
 
-if args.dataset == 'mnist':
-    dataset = MnistDataset()
-elif args.dataset == 'lsun':
-    dataset = LSUNDataset(db_path=args.db_path)
-elif args.dataset == 'celebA':
-    dataset = CelebADataset(db_path=args.db_path)
-elif args.dataset == 'svhn':
-    dataset = SVHNDataset(db_path=args.db_path)
-elif args.dataset == 'atari':
+if args.dataset == 'atari':
     dataset = AtariDataset(transition=args.transition, db_path=args.db_path)
 else:
     print("Unknown dataset")
     exit(-1)
 
-model = VLadder(dataset, file_path=fpath, name=args.netname, reg=args.reg, batch_size=args.batch_size, restart=args.no_train, add_coords=args.convcoord)
+model = VLadder(dataset, file_path=fpath, name=args.name, reg=args.reg, batch_size=args.batch_size, restart=args.no_train, add_coords=args.convcoord)
 trainer = NoisyTrainer(model, dataset, args)
 if args.no_train:
-    trainer.output_codes()
+    trainer.visualize()
 else:
     trainer.train()
