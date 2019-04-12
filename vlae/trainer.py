@@ -45,9 +45,10 @@ class NoisyTrainer:
         iteration = 0
         while True:
             iter_time = time.time()
-            images = self.dataset.next_batch(self.batch_size)
+#            images = self.dataset.next_batch(self.batch_size)
+            images, classes = self.dataset.next_batch(self.batch_size)
             noisy_input = self.get_noisy_input(images)
-            recon_loss, reg_loss, latent = self.network.train(noisy_input, images)
+            recon_loss, reg_loss, latent = self.network.train(noisy_input, images, classes)
             pth = self.file_path + "vladder_"+self.args.dataset+"_"+self.args.name
 
             if iteration % 20 == 0:
@@ -91,9 +92,10 @@ class NoisyTrainer:
     def test(self, epoch, num_batch=3):
         error = 0.0
         for test_iter in range(num_batch):
-            test_image = self.dataset.next_test_batch(self.batch_size)
+            test_image, test_class = self.dataset.next_test_batch(self.batch_size)
+#            test_image = self.dataset.next_test_batch(self.batch_size)
             noisy_test_image = self.get_noisy_input(test_image)
-            reconstruction = self.network.test(noisy_test_image)
+            reconstruction = self.network.test(noisy_test_image, test_class)
             error += np.sum(np.square(reconstruction - test_image)) / np.prod(self.data_dims[:2]) / self.batch_size
             if test_iter == 0 and self.args.plot_reconstruction:
                 self.plot_reconstruction(epoch, test_image, noisy_test_image, reconstruction)

@@ -1,15 +1,12 @@
 from abstract_network import *
 
 class LargeLayers:
-    # addded convcoords
     def __init__(self, network, add_coords):
         self.network = network
-        # added convcoords
         self.add_coords = add_coords
 
     def inference0(self, input_x, is_training=True):
         with tf.variable_scope("inference0"):
-            # added convcoords
             conv1 = conv2d_bn_lrelu(input_x, self.network.cs[1], [4, 4], 2, is_training, self.add_coords)
             conv2 = conv2d_bn_lrelu(conv1, self.network.cs[1], [4, 4], 1, is_training, self.add_coords)
             return conv2
@@ -98,7 +95,6 @@ class LargeLayers:
             elif latent1 is None:
                 print("Generative layer must have input")
                 exit(0)
-            # add convcoords
             conv1 = conv2d_t_bn_relu(latent1, self.network.cs[1], [4, 4], 2, is_training, self.add_coords)
             output = tf.contrib.layers.convolution2d_transpose(conv1, self.network.data_dims[2], [4, 4], 1,
                                                                activation_fn=tf.sigmoid)
@@ -120,7 +116,6 @@ class LargeLayers:
             elif latent2 is None:
                 print("Generative layer must have input")
                 exit(0)
-            # add convcoords
             conv1 = conv2d_t_bn_relu(latent2, self.network.cs[2], [4, 4], 2, is_training, self.add_coords)
             conv2 = conv2d_t_bn_relu(conv1, self.network.cs[2], [4, 4], 1, is_training, self.add_coords)
             conv3 = conv2d_t_bn_relu(conv2, self.network.cs[1], [4, 4], 2, is_training, self.add_coords)
