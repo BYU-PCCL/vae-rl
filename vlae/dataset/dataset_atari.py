@@ -26,7 +26,6 @@ class AtariDataset(Dataset):
             for i in range(1, 11):
                 for filename in glob(db_path + folder + "/game_{}/*.npy".format(i)):
                     game_files.append([filename, j])
-#                    game_files.append(filename)
             if self.transition:
                 game_files = random.sample(game_files, 7400)
             else:
@@ -53,7 +52,6 @@ class AtariDataset(Dataset):
         self.test_cache = np.ndarray((self.test_size, size, size, self.channels), dtype=np.float32)
         self.test_cache_top = 0
         self.range = [-1., 1.]
-        self.is_crop = crop
         self.name = "atari"
 
     def next_batch(self, batch_size):
@@ -71,18 +69,6 @@ class AtariDataset(Dataset):
         sample_images = np.stack(sample[:, 0]).astype(np.float32)
         sample_classes = np.stack(sample[:, 1]).astype(np.float32)
         return sample_images, sample_classes
-
-    def batch_by_index(self, batch_start, batch_end):
-        print("ENTERED IN BATCH_BY_INDEX SO YOU DON'T NEED TO DELETE IT")
-        sample_files = self.data_files[batch_start:batch_end]
-        sample = np.array([self.get_image(sample_file) for sample_file in sample_files])
-        sample_images = sample[:, 0]
-        sample_classes = sample[:, 1]
-        return sample_images, sample_classes
-
-    def downsample_image(self, image):
-        red_image = block_reduce(image, block_size=(3, 2, 1), func=np.max)
-        return red_image
 
     def get_image(self, sample_file):
         image_path = sample_file[0]
@@ -105,29 +91,3 @@ class AtariDataset(Dataset):
 
     def reset(self):
         self.idx = 0
-
-
-"""
-    def next_batch(self, batch_size):
-        np.random.shuffle(self.train_img)
-        sample_files = self.train_img[:batch_size]
-        sample = [self.get_image(sample_file) for sample_file in sample_files]
-        print(np.shape(sample))
-        sample_images = np.array(sample).astype(np.float32)
-        return sample_images
-    def get_image(self, image_path):
-        image = np.load(image_path)
-        image = cv2.resize(image, (96, 96), interpolation=cv2.INTER_NEAREST)
-        image = image.astype('float32')
-        if self.transition:
-             image = image * 2 - 1.0
-        else:
-             image = image / 127.5 - 1.0
-        return image
-    def next_test_batch(self, batch_size):
-        np.random.shuffle(self.test_img)
-        sample_files = self.test_img[:batch_size]
-        sample = [self.get_image(sample_file) for sample_file in sample_files]
-        sample_images = np.array(sample).astype(np.float32)
-        return sample_images
-"""

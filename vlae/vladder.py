@@ -29,7 +29,7 @@ class VLadder(Network):
         self.num_layers = 4
         loss_ratio = 0.5
         layers = LargeLayers(self, add_coords)
-        self.do_generate_conditional_samples = True
+        self.do_generate_conditional_samples = False
         self.do_generate_samples = True
 
         self.self = self
@@ -39,18 +39,10 @@ class VLadder(Network):
         self.classes_placeholder = tf.placeholder(shape=[None]+[10], dtype = tf.float32, name="classes_placeholder")
         self.is_training = tf.placeholder(tf.bool, name='phase')
         
-        self.alpha = tf.random_normal(shape=(21,10), mean=0, stddev=1, dtype=tf.float32)
-        self.beta = tf.random_normal(shape=(21,10), mean=2, stddev=0.1, dtype=tf.float32)
-        self.classes_transpose = tf.transpose(self.classes_placeholder)
-        self.alpha = tf.transpose(tf.matmul(self.alpha, self.classes_transpose))
-        self.beta = tf.transpose(tf.matmul(self.beta, self.classes_transpose))
-
         self.regularization = 0.0
         input_size = tf.shape(self.input_placeholder)[0]
         if self.ladder0_dim > 0:
-            self.iladder0_mean, self.iladder0_stddev = layers.ladder0(self.input_placeholder, is_training=self.is_training)
-            self.iladder0_mean = self.iladder0_mean - self.alpha
-            self.iladder0_mean = tf.div((self.iladder0_mean - self.alpha), self.beta)
+            self.iladder0_mean, self.iladder0_stddev = layers.ladder0(self.input_placeholder, self.classes_placeholder, is_training=self.is_training)
             self.iladder0_stddev += 0.001
             self.iladder0_sample = self.iladder0_mean + \
                 tf.multiply(self.iladder0_stddev, tf.random_normal(tf.stack([input_size, self.ladder0_dim])))
@@ -65,11 +57,9 @@ class VLadder(Network):
             self.regularization += self.ladder0_reg
 
         if self.num_layers >= 2:
-            self.ilatent1_hidden = layers.inference0(self.input_placeholder, is_training=self.is_training)
+            self.ilatent1_hidden = layers.inference0(self.input_placeholder, self.classes_placeholder, is_training=self.is_training)
             if self.ladder1_dim > 0:
-                self.iladder1_mean, self.iladder1_stddev = layers.ladder1(self.ilatent1_hidden, is_training=self.is_training)
-                self.iladder1_mean = self.iladder1_mean - self.alpha
-                self.iladder1_mean = tf.div((self.iladder1_mean - self.alpha), self.beta)
+                self.iladder1_mean, self.iladder1_stddev = layers.ladder1(self.ilatent1_hidden, self.classes_placeholder, is_training=self.is_training)
                 self.iladder1_stddev += 0.001
                 self.iladder1_sample = self.iladder1_mean + \
                     tf.multiply(self.iladder1_stddev, tf.random_normal(tf.stack([input_size, self.ladder1_dim])))
@@ -85,11 +75,9 @@ class VLadder(Network):
                 self.regularization += self.ladder1_reg
 
         if self.num_layers >= 3:
-            self.ilatent2_hidden = layers.inference1(self.ilatent1_hidden, is_training=self.is_training)
+            self.ilatent2_hidden = layers.inference1(self.ilatent1_hidden, self.classes_placeholder, is_training=self.is_training)
             if self.ladder2_dim > 0:
-                self.iladder2_mean, self.iladder2_stddev = layers.ladder2(self.ilatent2_hidden, is_training=self.is_training)
-                self.iladder2_mean = self.iladder2_mean - self.alpha
-                self.iladder2_mean = tf.div((self.iladder2_mean - self.alpha), self.beta)
+                self.iladder2_mean, self.iladder2_stddev = layers.ladder2(self.ilatent2_hidden, self.classes_placeholder, is_training=self.is_training)
                 self.iladder2_stddev += 0.001
                 self.iladder2_sample = self.iladder2_mean + \
                     tf.multiply(self.iladder2_stddev, tf.random_normal(tf.stack([input_size, self.ladder2_dim])))
@@ -105,11 +93,9 @@ class VLadder(Network):
                 self.regularization += self.ladder2_reg
 
         if self.num_layers >= 4:
-            self.ilatent3_hidden = layers.inference2(self.ilatent2_hidden, is_training=self.is_training)
+            self.ilatent3_hidden = layers.inference2(self.ilatent2_hidden, self.classes_placeholder, is_training=self.is_training)
             if self.ladder3_dim > 0:
-                self.iladder3_mean, self.iladder3_stddev = layers.ladder3(self.ilatent3_hidden, is_training=self.is_training)
-                self.iladder3_mean = self.iladder3_mean - self.alpha
-                self.iladder3_mean = tf.div((self.iladder3_mean - self.alpha), self.beta)
+                self.iladder3_mean, self.iladder3_stddev = layers.ladder3(self.ilatent3_hidden, self.classes_placeholder, is_training=self.is_training)
                 self.iladder3_stddev += 0.001
                 self.iladder3_sample = self.iladder3_mean + \
                     tf.multiply(self.iladder3_stddev, tf.random_normal(tf.stack([input_size, self.ladder3_dim])))
@@ -130,46 +116,45 @@ class VLadder(Network):
         if self.num_layers >= 4 and self.ladder3_dim > 0:
             self.ladder3_placeholder = tf.placeholder(shape=(None, self.ladder3_dim), dtype=tf.float32, name="ladder3")
             self.ladders['ladder3'] = [self.ladder3_placeholder, self.ladder3_dim, self.iladder3_sample]
-            tlatent3_state = layers.generative3(None, self.iladder3_sample, is_training=self.is_training)
-            glatent3_state = layers.generative3(None, self.ladder3_placeholder, reuse=True, is_training=False)
+            tlatent3_state = layers.generative3(None, self.iladder3_sample, self.classes_placeholder, is_training=self.is_training)
+            glatent3_state = layers.generative3(None, self.ladder3_placeholder, self.classes_placeholder, reuse=True, is_training=False)
         else:
             tlatent3_state, glatent3_state = None, None
 
         if self.num_layers >= 3 and self.ladder2_dim > 0:
             self.ladder2_placeholder = tf.placeholder(shape=(None, self.ladder2_dim), dtype=tf.float32, name="ladder2")
             self.ladders['ladder2'] = [self.ladder2_placeholder, self.ladder2_dim, self.iladder2_sample]
-            tlatent2_state = layers.generative2(tlatent3_state, self.iladder2_sample, is_training=self.is_training)
-            glatent2_state = layers.generative2(glatent3_state, self.ladder2_placeholder, reuse=True, is_training=False)
+            tlatent2_state = layers.generative2(tlatent3_state, self.iladder2_sample, self.classes_placeholder, is_training=self.is_training)
+            glatent2_state = layers.generative2(glatent3_state, self.ladder2_placeholder, self.classes_placeholder, reuse=True, is_training=False)
         elif tlatent3_state is not None:
-            tlatent2_state = layers.generative2(tlatent3_state, None, is_training=self.is_training)
-            glatent2_state = layers.generative2(glatent3_state, None, reuse=True, is_training=False)
+            tlatent2_state = layers.generative2(tlatent3_state, None, self.classes_placeholder, is_training=self.is_training)
+            glatent2_state = layers.generative2(glatent3_state, None, self.classes_placeholder, reuse=True, is_training=False)
         else:
             tlatent2_state, glatent2_state = None, None
 
         if self.num_layers >= 2 and self.ladder1_dim > 0:
             self.ladder1_placeholder = tf.placeholder(shape=(None, self.ladder1_dim), dtype=tf.float32, name="ladder1")
             self.ladders['ladder1'] = [self.ladder1_placeholder, self.ladder1_dim, self.iladder1_sample]
-            tlatent1_state = layers.generative1(tlatent2_state, self.iladder1_sample, is_training=self.is_training)
-            glatent1_state = layers.generative1(glatent2_state, self.ladder1_placeholder, reuse=True, is_training=False)
+            tlatent1_state = layers.generative1(tlatent2_state, self.iladder1_sample, self.classes_placeholder, is_training=self.is_training)
+            glatent1_state = layers.generative1(glatent2_state, self.ladder1_placeholder, self.classes_placeholder, reuse=True, is_training=False)
         elif tlatent2_state is not None:
-            tlatent1_state = layers.generative1(tlatent2_state, None, is_training=self.is_training)
-            glatent1_state = layers.generative1(glatent2_state, None, reuse=True, is_training=False)
+            tlatent1_state = layers.generative1(tlatent2_state, None, self.classes_placeholder, is_training=self.is_training)
+            glatent1_state = layers.generative1(glatent2_state, None, self.classes_placeholder, reuse=True, is_training=False)
         else:
             tlatent1_state, glatent1_state = None, None
 
         if self.ladder0_dim > 0:
             self.ladder0_placeholder = tf.placeholder(shape=(None, self.ladder0_dim), dtype=tf.float32, name="ladder0")
             self.ladders['ladder0'] = [self.ladder0_placeholder, self.ladder0_dim, self.iladder0_sample]
-            self.toutput = layers.generative0(tlatent1_state, self.iladder0_sample, is_training=self.is_training)
-            self.goutput = layers.generative0(glatent1_state, self.ladder0_placeholder, reuse=True, is_training=False)
+            self.toutput = layers.generative0(tlatent1_state, self.iladder0_sample, self.classes_placeholder, is_training=self.is_training)
+            self.goutput = layers.generative0(glatent1_state, self.ladder0_placeholder, self.classes_placeholder, reuse=True, is_training=False)
         elif tlatent1_state is not None:
-            self.toutput = layers.generative0(tlatent1_state, None, is_training=self.is_training)
-            self.goutput = layers.generative0(glatent1_state, None, reuse=True, is_training=False)
+            self.toutput = layers.generative0(tlatent1_state, None, self.classes_placeholder, is_training=self.is_training)
+            self.goutput = layers.generative0(glatent1_state, None, self.classes_placeholder, reuse=True, is_training=False)
         else:
             print("Error: no active ladder")
             exit(0)
 
-        # Loss and training operators
         self.reconstruction_loss = tf.reduce_mean(tf.abs(self.toutput - self.target_placeholder))
 
         self.reg_coeff = tf.placeholder_with_default(1.0, shape=[], name="regularization_coeff")
@@ -224,51 +209,17 @@ class VLadder(Network):
                                                 self.is_training: False})
         return train_return
 
-    def inference(self, batch_input):
-        tensor_handle = [self.ladders[key][2] for key in self.ladders]
-        tensor_value = self.sess.run(tensor_handle, feed_dict={self.input_placeholder: batch_input, self.is_training: False})
-        return {name: value for name, value in zip(self.ladders, tensor_value)}
-
-    def generate(self, codes):
-        feed_dict = {self.ladders[key][0]: codes[key] for key in self.ladders}
-        feed_dict[self.is_training] = False
-        output = self.sess.run(self.goutput, feed_dict=feed_dict)
-        return output
-
     def random_latent_code(self):
         return {key: np.random.normal(size=[self.ladders[key][1]]) for key in self.ladders}
-
-    def generate_conditional_samples(self, condition_layer, condition_code):
-        codes = {key: np.random.normal(size=[self.batch_size, self.ladders[key][1]]) for key in self.ladders}
-
-        random_indexes = np.random.choice(range(self.batch_size), size=8, replace=False)
-        for key in codes:
-            if condition_layer != key:
-                codes[key][random_indexes] = condition_code[key]
-
-        feed_dict = {self.ladders[key][0]: codes[key] for key in self.ladders}
-        feed_dict[self.is_training] = False
-        output = self.sess.run(self.goutput, feed_dict=feed_dict)
-        return output[random_indexes], condition_code
 
     def generate_samples(self, batch_size=None):
         if batch_size is None:
             batch_size = self.batch_size
         codes = {key: np.random.normal(size=[batch_size, self.ladders[key][1]]) for key in self.ladders}
+        batch_classes = np.eye(10)[np.random.choice(10, batch_size)]
         feed_dict = {self.ladders[key][0]: codes[key] for key in self.ladders}
         feed_dict[self.is_training] = False
+        feed_dict[self.classes_placeholder] = batch_classes
         output = self.sess.run(self.goutput, feed_dict=feed_dict)
         return output
 
-    def generate_manifold_samples(self, external_layer, external_code):
-        codes = {key: np.random.normal(size=[external_code.shape[0], self.ladders[key][1]]) for key in self.ladders}
-        codes[external_layer] = external_code
-        feed_dict = {self.ladders[key][0]: codes[key] for key in self.ladders}
-        feed_dict[self.is_training] = False
-        output = self.sess.run(self.goutput, feed_dict=feed_dict)
-        return output
-    
-    def get_latent_codes(self, image):
-        feed_dict = {self.input_placeholder: image,
-                     self.is_training: False}
-        return self.sess.run(self.latent, feed_dict=feed_dict)

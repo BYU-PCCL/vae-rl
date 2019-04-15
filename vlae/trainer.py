@@ -45,7 +45,6 @@ class NoisyTrainer:
         iteration = 0
         while True:
             iter_time = time.time()
-#            images = self.dataset.next_batch(self.batch_size)
             images, classes = self.dataset.next_batch(self.batch_size)
             noisy_input = self.get_noisy_input(images)
             recon_loss, reg_loss, latent = self.network.train(noisy_input, images, classes)
@@ -68,10 +67,7 @@ class NoisyTrainer:
                 layers.sort()
                 if self.network.do_generate_samples:
                     sample_visualizer.visualize(num_rows=10, use_gui=self.args.use_gui)
-                if self.network.do_generate_conditional_samples:
-                    sample_visualizer_conditional.visualize(layers=layers, num_rows=10, use_gui=self.args.use_gui)
-                if self.network.do_generate_manifold_samples:
-                    sample_visualizer_manifold.visualize(layers=layers, num_rows=30, use_gui=self.args.use_gui)
+
             iteration += 1
 
     def visualize(self):
@@ -81,19 +77,12 @@ class NoisyTrainer:
         if self.network.do_generate_samples:
             sample_visualizer = SampleVisualizer(self.network, self.dataset)
             sample_visualizer.visualize(num_rows=10, use_gui=self.args.use_gui)
-        if self.network.do_generate_conditional_samples:
-            sample_visualizer_conditional = ConditionalSampleVisualizer(self.network, self.dataset)
-            sample_visualizer_conditional.visualize(layers=layers, num_rows=10, use_gui=self.args.use_gui)
-        if self.network.do_generate_manifold_samples:
-            sample_visualizer_manifold = ManifoldSampleVisualizer(self.network, self.dataset)
-            sample_visualizer_manifold.visualize(layers=layers, num_rows=30, use_gui=self.args.use_gui)
 
     """ Returns reconstruction error per pixel """
     def test(self, epoch, num_batch=3):
         error = 0.0
         for test_iter in range(num_batch):
             test_image, test_class = self.dataset.next_test_batch(self.batch_size)
-#            test_image = self.dataset.next_test_batch(self.batch_size)
             noisy_test_image = self.get_noisy_input(test_image)
             reconstruction = self.network.test(noisy_test_image, test_class)
             error += np.sum(np.square(reconstruction - test_image)) / np.prod(self.data_dims[:2]) / self.batch_size
@@ -121,13 +110,9 @@ class NoisyTrainer:
         if canvas.shape[-1] == 1:
             misc.imsave(os.path.join(img_folder, 'current.png'), canvas[:, :, 0])
             misc.imsave(os.path.join(img_folder, 'epoch%d.png' % epoch), canvas[:, :, 0])
-            #np.save(os.path.join(img_folder, 'current.npy'), canvas[:, :, 0])
-            #np.save(misc.imsave(os.path.join(img_folder, 'epoch%d.npy' % epoch), canvas[:, :, 0]))
         else:
             misc.imsave(os.path.join(img_folder, 'current.png'), canvas)
             misc.imsave(os.path.join(img_folder, 'epoch%d.png' % epoch), canvas)
-            #np.save(os.path.join(img_folder, 'current.npy'), canvas)
-            #np.save(os.path.join(img_folder, 'epoch%d.npy' % epoch), canvas)
 
         if self.args.use_gui:
             if self.fig is None:

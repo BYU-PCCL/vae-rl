@@ -5,8 +5,8 @@ import glob
 from matplotlib import pyplot as plt
 from matplotlib.patches import Ellipse
 import os, sys, shutil, re
-# Added in Coordinate Convolutions.
 from CoordConv import AddCoords, CoordConv
+from tensorflow.python.ops import math_ops
 
 def lrelu(x, rate=0.1):
     return tf.maximum(tf.minimum(x * rate, 0), x)
@@ -16,8 +16,19 @@ conv2d_t = tf.contrib.layers.convolution2d_transpose
 fc_layer = tf.contrib.layers.fully_connected
 initializer = tf.random_normal_initializer(stddev=0.02)
 
-# Added in coordconv.
-def conv2d_bn_lrelu(inputs, num_outputs, kernel_size, stride, is_training=True, add_coords=False):
+def conditional_instance_norm(inputs, scope_bn, labels):
+    beta = tf.get_variable(name=scope_bn+'beta', shape=[labels.shape[-1], inputs.shape[-1]], initializer=tf.constant_initializer([0.]), trainable=True)
+    gamma = tf.get_variable(name=scope_bn+'gamma', shape=[labels.shape[-1], inputs.shape[-1]], initializer=tf.constant_initializer([1.]), trainable=True)
+    beta = tf.matmul(labels, beta)
+    gamma = tf.matmul(labels, gamma)
+
+    shape = inputs.get_shape().as_list()
+    if len(shape) == 4:
+         beta = tf.reshape(beta, [-1, 1, 1, shape[-1]])
+         gamma = tf.reshape(gamma, [-1, 1, 1, shape[-1]])
+    return gamma * inputs + beta
+
+def conv2d_bn_lrelu(inputs, num_outputs, kernel_size, stride, classes, name, is_training=True, add_coords=False):
     if add_coords:
         _, x_dim, y_dim, _ = inputs.get_shape().as_list()
         conv = AddCoords(x_dim=x_dim, y_dim=y_dim, with_r=False, skiptile=True)(inputs)
@@ -27,11 +38,11 @@ def conv2d_bn_lrelu(inputs, num_outputs, kernel_size, stride, is_training=True, 
         conv = tf.contrib.layers.convolution2d(inputs, num_outputs, kernel_size, stride, weights_initializer=initializer,
                                            weights_regularizer=tf.contrib.layers.l2_regularizer(2.5e-5), activation_fn=tf.identity)
     conv = tf.contrib.layers.batch_norm(conv, is_training=is_training)
+    conv = conditional_instance_norm(conv, name, classes)
     conv = lrelu(conv)
     return conv
 
-# Added in coordconv.
-def conv2d_t_bn_relu(inputs, num_outputs, kernel_size, stride, is_training=True, add_coords=False):
+def conv2d_t_bn_relu(inputs, num_outputs, kernel_size, stride, classes, name, is_training=True, add_coords=False):
     if add_coords:
         _, x_dim, y_dim, _ = inputs.get_shape().as_list()
         conv = AddCoords(x_dim=x_dim, y_dim=y_dim, with_r=False, skiptile=True)(inputs)
@@ -41,39 +52,28 @@ def conv2d_t_bn_relu(inputs, num_outputs, kernel_size, stride, is_training=True,
         conv = tf.contrib.layers.convolution2d_transpose(inputs, num_outputs, kernel_size, stride, weights_initializer=initializer,
                                                      weights_regularizer=tf.contrib.layers.l2_regularizer(2.5e-5), activation_fn=tf.identity)
     conv = tf.contrib.layers.batch_norm(conv, is_training=is_training)
+    conv = conditional_instance_norm(conv, name, classes)
     conv = lrelu(conv)
     return conv
 
-# Added in coordconv.
-def conv2d_t_bn(inputs, num_outputs, kernel_size, stride, is_training=True, add_coords=False):
-    if add_coords:
-        _, x_dim, y_dim, _ = inputs.get_shape().as_list()
-        conv = AddCoords(x_dim=x_dim, y_dim=y_dim, with_r=False, skiptile=True)(inputs)
-        conv = tf.contrib.layers.convolution2d_transpose(conv, num_outputs, kernel_size, stride, weights_initializer=initializer,
-                                                     weights_regularizer=tf.contrib.layers.l2_regularizer(2.5e-5), activation_fn=tf.identity, scope=None)
-    else:
-        conv = tf.contrib.layers.convolution2d_transpose(inputs, num_outputs, kernel_size, stride, weights_initializer=initializer,
-                                                     weights_regularizer=tf.contrib.layers.l2_regularizer(2.5e-5), activation_fn=tf.identity, scope=None)
-    conv = tf.contrib.layers.batch_norm(conv, is_training=is_training)
-    return conv
-
-
-def fc_bn_lrelu(inputs, num_outputs, is_training=True):
+def fc_bn_lrelu(inputs, num_outputs, classes, name, is_training=True):
     fc = tf.contrib.layers.fully_connected(inputs, num_outputs,
                                            weights_initializer=initializer,
                                            weights_regularizer=tf.contrib.layers.l2_regularizer(2.5e-5),
                                            activation_fn=tf.identity)
     fc = tf.contrib.layers.batch_norm(fc, is_training=is_training)
+    fc = conditional_instance_norm(fc, name, classes)
     fc = lrelu(fc)
     return fc
 
 
-def fc_bn_relu(inputs, num_outputs, is_training=True):
+def fc_bn_relu(inputs, num_outputs, classes, name, is_training=True):
     fc = tf.contrib.layers.fully_connected(inputs, num_outputs,
                                            weights_initializer=initializer,
                                            weights_regularizer=tf.contrib.layers.l2_regularizer(2.5e-5),
                                            activation_fn=tf.identity)
     fc = tf.contrib.layers.batch_norm(fc, is_training=is_training)
+    fc = conditional_instance_norm(fc, name, classes)
     fc = tf.nn.relu(fc)
     return fc
 
@@ -128,25 +128,18 @@ class Network:
         self.writer = tf.summary.FileWriter(self.file_path + self.name, self.sess.graph)
         self.writer.flush()
 
-    """ Save network, if network file already exists back it up to models/old folder. Only one back up will be created
-    for each network """
     def save_network(self):
         if not self.read_only:
             with tf.device('/cpu:0'):
                 saver = tf.train.Saver()
             self.make_model_path()
-            # if not os.path.isdir(self.file_path + "old"):
-                # os.mkdir(self.file_path + "old")
             file_name = self.file_path + self.name + "/" + self.name + ".ckpt"
             if os.path.isfile(file_name):
-                # We moved the 2 lines here.
                 if not os.path.isdir(self.file_path + "old"):
                     os.mkdir(self.file_path + "old")
                 os.rename(file_name, self.file_path + "old/" + self.name + ".ckpt")
             saver.save(self.sess, file_name)
 
-    """ Either initialize or load network from file.
-    Always run this at end of initialization for every subclass to initialize Variables properly """
     def init_network(self, restart=False):
         self.sess.run(tf.global_variables_initializer())
         self.sess.run(tf.local_variables_initializer())
@@ -164,10 +157,8 @@ class Network:
         else:
             print("No checkpoint file found, Initializing model from random")
 
-    """ This function should train on the given batch and return the training loss """
     def train(self, batch_input, batch_target, labels=None):
         return None
 
-    """ This function should take the input and return the reconstructed images """
     def test(self, batch_input, labels=None):
         return None
