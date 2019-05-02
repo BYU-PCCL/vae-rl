@@ -18,6 +18,8 @@ Packages need to run Rainbow:
 * plotly
 * atari_py
 * tensorflow
+* tqdm
+If running on SIVRI
 * pip install --upgrade torch torchvision
 
 Packages needed to run VLAE:
