@@ -19,6 +19,7 @@ Packages need to run Rainbow:
 * atari_py
 * tensorflow
 * tqdm
+
 If running on SIVRI
 * pip install --upgrade torch torchvision
 
