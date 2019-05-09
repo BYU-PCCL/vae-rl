@@ -1,0 +1,27 @@
+oldcode.txt
+
+    if self.encode_trans:
+         state = [transforms.Resize([96,96])(trans.state) for trans in transition[:self.history]]
+         #state = [trans.state.numpy() for trans in transition[:self.history]]
+         #state = [cv2.resize(s, (96, 96), interpolation=cv2.INTER_LINEAR) for s in state]
+         state_latents = torch.tensor(self.network.get_latent_codes(np.reshape(state, (1,96,96,4))), dtype=torch.float32, device=self.device)
+         state = [torch.tensor(s, dtype=torch.float32, device=self.device) for s in state]
+         state = [transforms.resize([84,83])(s) for s in state]
+         #state = [cv2.resize(s, (84, 83), interpolation=cv2.INTER_LINEAR) for s in state]
+         state = [torch.cat([s, state_latents], 0) for s in state]
+         state = torch.stack(state).to(dtype=torch.float32, device=self.device)
+    else:
+         state = torch.stack([trans.state for trans in transition[:self.history]]).to(dtype=torch.float32, device=self.device)
+
+    if self.encode_trans:
+         next_state = [transforms.Resize([96,96])(trans.state) for trans in transition[self.n:self.n+self.history]]
+         #next_state = [trans.state.numpy() for trans in transition[self.n:self.n+self.history]]
+         #next_state = [cv2.resize(s, (96, 96), interpolation=cv2.INTER_LINEAR) for s in next_state]
+         next_latents = torch.tensor(self.network.get_latent_codes(np.reshape(next_state, (1,96,96,4))), dtype=torch.float32, device=self.device)
+         next_state = [torch.tensor(s, dtype=torch.float32, device=self.device) for s in next_state]
+         next_state = [transforms.resize([84,83])(s) for s in next_state]
+         #next_state = [cv2.resize(s, (84, 83), interpolation=cv2.INTER_LINEAR) for s in next_state]
+         next_state = [torch.cat([s, next_latents], 0) for s in next_state]
+         next_state = torch.stack(next_state).to(dtype=torch.float32, device=self.device)
+    else:
+         next_state = torch.stack([trans.state for trans in transition[self.n:self.n + self.history]]).to(dtype=torch.float32, device=self.device)

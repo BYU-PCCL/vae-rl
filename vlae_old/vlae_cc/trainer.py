@@ -7,7 +7,7 @@ class NoisyTrainer:
         self.network = network
         self.dataset = dataset
         self.args = args
-        self.batch_size = 64
+        self.batch_size = args.batch_size
         self.data_dims = self.dataset.data_dims
         self.train_with_mask = False
         self.train_discrete = False
@@ -27,7 +27,7 @@ class NoisyTrainer:
         # Add Gaussian noise
         noisy_input += np.random.normal(scale=0.1, size=[self.batch_size]+self.dataset.data_dims)
 
-        # Activate following code to remove entire window of content. Not recommended64
+        # Activate following code to remove entire window of content. Not recommended
         # removed_width = random.randint(10, int(round(self.data_dims[0]/1.5)))
         # removed_height = random.randint(10, int(round(self.data_dims[1]/1.5)))
         # removed_left = random.randint(0, self.data_dims[0] - removed_width - 1)
@@ -44,7 +44,6 @@ class NoisyTrainer:
         return np.clip(noisy_input, a_min=self.dataset.range[0], a_max=self.dataset.range[1])
 
     def train(self):
-        print("TRAINING")
         # Visualization
         if self.network.do_generate_samples:
             sample_visualizer = SampleVisualizer(self.network, self.dataset)
@@ -56,9 +55,9 @@ class NoisyTrainer:
         iteration = 0
         while True:
             iter_time = time.time()
-            images = self.dataset.next_batch(self.batch_size)
+            images, class_labels = self.dataset.next_batch(self.batch_size)
             noisy_input = self.get_noisy_input(images)
-            recon_loss, reg_loss = self.network.train(noisy_input, images)
+            recon_loss, reg_loss = self.network.train(noisy_input, class_labels, images)
 
             if iteration % 20 == 0:
                 print("Iteration %d: Reconstruction loss %f, Regularization loss %f, time per iter %fs" %
@@ -98,9 +97,9 @@ class NoisyTrainer:
     def test(self, epoch, num_batch=3):
         error = 0.0
         for test_iter in range(num_batch):
-            test_image = self.dataset.next_test_batch(self.batch_size)
+            test_image, test_class_labels = self.dataset.next_test_batch(self.batch_size)
             noisy_test_image = self.get_noisy_input(test_image)
-            reconstruction = self.network.test(noisy_test_image)
+            reconstruction = self.network.test(noisy_test_image, test_class_labels)
             error += np.sum(np.square(reconstruction - test_image)) / np.prod(self.data_dims[:2]) / self.batch_size
             if test_iter == 0 and self.args.plot_reconstruction:
                 # Plot the original image, noisy image, and reconstructed image
@@ -142,3 +141,5 @@ class NoisyTrainer:
                 self.ax.imshow(canvas)
             plt.draw()
             plt.pause(1)
+
+

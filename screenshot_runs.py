@@ -17,7 +17,7 @@ env = gym.make(game)
 rewards, actions = [], []
 for run in range(10):
     env.reset()
-    for i in range(1000):
+    for i in range(10000):
         action = env.action_space.sample()
         actions.append(action)
         obs, rew, done, info = env.step(action) # Take a random action.
@@ -29,9 +29,7 @@ for run in range(10):
         states_folder_extended = states_folder + "game_{}/".format(run+1)
         os.makedirs(states_folder_extended, exist_ok=True)
 
-        state_num = i/5
-        if i % 5 == 0:
-            np.save(states_folder_extended + "state_{}".format(state_num), obs)
+        np.save(states_folder_extended + "state_{}".format(i), obs)
 
     if rewards_filepath:
         np.save(rewards_filepath, rewards)

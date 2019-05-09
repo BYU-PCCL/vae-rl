@@ -3,7 +3,6 @@ import math, os
 from glob import glob
 import numpy as np
 import matplotlib
-matplotlib.use('Agg')
 import scipy.misc as misc
 from matplotlib import pyplot as plt
 from skimage.measure import block_reduce

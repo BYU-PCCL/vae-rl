@@ -1,5 +1,0 @@
-1/30/2018
-
-In env.py I changed the _get_state function to get the RBG instead of Grayscale images. Maybe in the future, I could train the VLAE on black and white atari game images.
-
-IDK if I have to update both get_state and step/reset? Or which one?
