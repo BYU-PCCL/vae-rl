@@ -42,14 +42,13 @@ class Agent():
 
   def learn(self, mem):
     idxs, states, actions, returns, next_states, nonterminals, weights = mem.sample(self.batch_size)
-    log_ps = self.online_net(states, log=True) # state log probabilities
-    log_ps_a = log_ps[range(self.batch_size), actions] # get it for the batch size & current actions
+    log_ps = self.online_net(states, log=True)
+    log_ps_a = log_ps[range(self.batch_size), actions]
 
     with torch.no_grad():
-      pns = self.online_net(next_states) # next state probabilities
-      # gets distribution 
-      dns = self.support.expand_as(pns) * pns # expand_as: expands tensor to size of tensor
-      argmax_indices_ns = dns.sum(2).argmax(1) # argmax selection
+      pns = self.online_net(next_states)
+      dns = self.support.expand_as(pns) * pns
+      argmax_indices_ns = dns.sum(2).argmax(1)
       self.target_net.reset_noise() 
       pns = self.target_net(next_states)
       pns_a = pns[range(self.batch_size), argmax_indices_ns]
@@ -75,7 +74,7 @@ class Agent():
     self.target_net.load_state_dict(self.online_net.state_dict())
 
   def save(self, path):
-    torch.save(self.online_net.state_dict(), os.path.join(path, 'model.pth'))
+    torch.save(self.online_net.state_dict(), os.path.join(path, 'model_all_layers.pth'))
 
   def evaluate_q(self, state):
     with torch.no_grad():

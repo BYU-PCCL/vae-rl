@@ -30,24 +30,31 @@ class Visualizer:
         fig.savefig(os.path.join(img_folder, fig_name))
         self.save_epoch += 1
 
-    def arr_to_file(self, arr):
+    def arr_to_file(self, arr, trans=False):
         img_folder = self.network.file_path + self.network.name + "_reconstructions/" + self.name
         if not os.path.isdir(img_folder):
             os.makedirs(img_folder)
 
         if arr.shape[-1] == 1:
-            misc.imsave(os.path.join(img_folder, 'current.png'), arr[:, :, 0])
-            misc.imsave(os.path.join(img_folder, 'epoch%d.png' % self.save_epoch), arr[:, :, 0])
+            if not trans:
+                misc.imsave(os.path.join(img_folder, 'current.png'), arr[:, :, 0])
+                misc.imsave(os.path.join(img_folder, 'epoch%d.png' % self.save_epoch), arr[:, :, 0])
+            else:
+                np.save(img_folder + "/epoch{}.npy".format(self.save_epoch), arr[:, :, 0])
         else:
-            misc.imsave(os.path.join(img_folder, 'current.png'), arr)
-            misc.imsave(os.path.join(img_folder, 'epoch%d.png' % self.save_epoch), arr)
+            if not trans:
+                misc.imsave(os.path.join(img_folder, 'current.png'), arr)
+                misc.imsave(os.path.join(img_folder, 'epoch%d.png' % self.save_epoch), arr)
+            else:
+                np.save(img_folder + "/epoch{}.npy".format(self.save_epoch), arr)
         self.save_epoch += 1
 
 class SampleVisualizer(Visualizer):
-    def __init__(self, network, dataset):
+    def __init__(self, network, dataset, trans=False):
         Visualizer.__init__(self, network)
         self.dataset = dataset
         self.name = "samples"
+        self.trans = trans
 
     def visualize(self, num_rows=10, use_gui=False):
         if use_gui and self.fig is None:
@@ -63,7 +70,7 @@ class SampleVisualizer(Visualizer):
                 for img_index2 in range(num_rows):
                     canvas[img_index1*width:(img_index1+1)*width, img_index2*height:(img_index2+1)*height, :] = \
                         samples[img_index1*num_rows+img_index2, :, :, :]
-            self.arr_to_file(canvas)
+            self.arr_to_file(canvas, self.trans)
 
             if use_gui:
                 self.ax.cla()

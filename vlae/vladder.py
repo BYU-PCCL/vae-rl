@@ -5,7 +5,6 @@ import numpy as np
 
 
 class VLadder(Network):
-    # Added coordconvs.
     def __init__(self, dataset, file_path, name=None, reg='kl', batch_size=100, restart=False, add_coords=False):
         Network.__init__(self, dataset, batch_size, file_path)
         self.name = "vladder_atari_{}".format(name)

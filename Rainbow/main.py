@@ -1,11 +1,13 @@
 import argparse
 from datetime import datetime
-import random
+import numpy as np
 import torch
+
 from agent import Agent
 from env import Env
 from memory import ReplayMemory
 from test import test
+from tqdm import tqdm
 
 parser = argparse.ArgumentParser(description='Rainbow')
 parser.add_argument('--seed', type=int, default=123, help='Random seed')
@@ -41,16 +43,18 @@ parser.add_argument('--render', action='store_true', help='Display screen (testi
 parser.add_argument('--use-encoder', type=int, default = 0, help='0 - pixel, 1 - VLAE, 2 - pixel+VLAE')
 parser.add_argument('--output-name', type=str, default='', help='Name of output HTML files')
 parser.add_argument('--use-convcoord', action='store_true', help='Add in coordinate convolutions')
+parser.add_argument('--name', type=str, default='', help='name of VLAE model')
+parser.add_argument('--encode-transitions', action='store_true', help='Compress images 4 at a time')
 
 args = parser.parse_args()
 print(' ' * 26 + 'Options')
 for k, v in vars(args).items():
   print(' ' * 26 + k + ': ' + str(v))
-random.seed(args.seed)
-torch.manual_seed(random.randint(1, 10000))
+np.random.seed(args.seed)
+torch.manual_seed(np.random.randint(1, 10000))
 if torch.cuda.is_available() and not args.disable_cuda:
   args.device = torch.device('cuda')
-  torch.cuda.manual_seed(random.randint(1, 10000))
+  torch.cuda.manual_seed(np.random.randint(1, 10000))
   torch.backends.cudnn.enabled = False
 else:
   args.device = torch.device('cpu')
@@ -63,6 +67,7 @@ env.train()
 action_space = env.action_space()
 
 dqn = Agent(args, env)
+
 mem = ReplayMemory(args, args.memory_capacity)
 priority_weight_increase = (1 - args.priority_weight) / (args.T_max - args.learn_start)
 
@@ -71,35 +76,37 @@ T, done = 0, True
 while T < args.evaluation_size:
   if done:
     state, done = env.reset(), False
-  next_state, _, done = env.step(random.randint(0, action_space - 1))
+  next_state, _, done = env.step(np.random.randint(0, action_space))
   val_mem.append(state, None, None, done)
   state = next_state
   T += 1
+
 if args.evaluate:
   dqn.eval()
-  # avg_reward, avg_Q = test(args, 0, dqn, val_mem, evaluate=True)
   avg_reward, avg_Q, env = test(args, 0, dqn, val_mem, env, evaluate=True)
   print('Avg. reward: ' + str(avg_reward) + ' | Avg. Q: ' + str(avg_Q))
 else:
   dqn.train()
-  T, done = 0, True
-  while T < args.T_max:
+  done = True
+  for T in tqdm(range(args.T_max)):
     if done:
       state, done = env.reset(), False
-    if T % args.replay_frequency == 0: # frequency of sampling from memory
+
+    if T % args.replay_frequency == 0:
       dqn.reset_noise()
+    
     action = dqn.act(state)
-    next_state, reward, done = env.step(action)
+    next_state, reward, done = env.step(action)  
     if args.reward_clip > 0:
       reward = max(min(reward, args.reward_clip), -args.reward_clip)
     mem.append(state, action, reward, done)
-    T += 1
-    if T % args.log_interval == 0:
-      log('T = ' + str(T) + ' / ' + str(args.T_max))
+      
     if T >= args.learn_start:
       mem.priority_weight = min(mem.priority_weight + priority_weight_increase, 1)
-      if T % args.replay_frequency == 0: # frequency of sampling from memory
+      
+      if T % args.replay_frequency == 0:
         dqn.learn(mem)
+
       if T % args.evaluation_interval == 0:
         dqn.eval()
         avg_reward, avg_Q, env = test(args, T, dqn, val_mem, env)
@@ -108,4 +115,5 @@ else:
       if T % args.target_update == 0:
         dqn.update_target_net()
     state = next_state
+
 env.close()

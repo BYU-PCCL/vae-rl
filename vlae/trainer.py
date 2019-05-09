@@ -36,7 +36,7 @@ class NoisyTrainer:
 
     def train(self):
         if self.network.do_generate_samples:
-            sample_visualizer = SampleVisualizer(self.network, self.dataset)
+            sample_visualizer = SampleVisualizer(self.network, self.dataset, self.args.transition)
         if self.network.do_generate_conditional_samples:
             sample_visualizer_conditional = ConditionalSampleVisualizer(self.network, self.dataset)
         if self.network.do_generate_manifold_samples:
@@ -75,7 +75,7 @@ class NoisyTrainer:
         layers.sort()
 
         if self.network.do_generate_samples:
-            sample_visualizer = SampleVisualizer(self.network, self.dataset)
+            sample_visualizer = SampleVisualizer(self.network, self.dataset, self.args.transition)
             sample_visualizer.visualize(num_rows=10, use_gui=self.args.use_gui)
 
     """ Returns reconstruction error per pixel """
@@ -108,11 +108,17 @@ class NoisyTrainer:
             os.makedirs(img_folder)
 
         if canvas.shape[-1] == 1:
-            misc.imsave(os.path.join(img_folder, 'current.png'), canvas[:, :, 0])
-            misc.imsave(os.path.join(img_folder, 'epoch%d.png' % epoch), canvas[:, :, 0])
+            if not self.args.transition:
+                misc.imsave(os.path.join(img_folder, 'current.png'), canvas[:, :, 0])
+                misc.imsave(os.path.join(img_folder, 'epoch%d.png' % epoch), canvas[:, :, 0])
+            else:            
+                np.save(img_folder + "/epoch{}.npy".format(epoch), canvas[:, :, 0])
         else:
-            misc.imsave(os.path.join(img_folder, 'current.png'), canvas)
-            misc.imsave(os.path.join(img_folder, 'epoch%d.png' % epoch), canvas)
+            if not self.args.transition:
+                misc.imsave(os.path.join(img_folder, 'current.png'), canvas)
+                misc.imsave(os.path.join(img_folder, 'epoch%d.png' % epoch), canvas)
+            else:
+                np.save(img_folder + "/epoch{}.npy".format(epoch), canvas)
 
         if self.args.use_gui:
             if self.fig is None:

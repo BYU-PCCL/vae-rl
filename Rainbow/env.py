@@ -26,11 +26,11 @@ class Env():
     self.window = args.history_length
     self.state_buffer = deque([], maxlen=args.history_length)
     self.training = True
+    self.encode_trans = args.encode_transitions
 
     self.useVLAE = args.use_encoder
-    if self.useVLAE != 0:
-      self.dataset = AtariDataset(db_path='')
-      self.network = VLadder(self.dataset, file_path='vlae/models/', name='', reg='kl', batch_size=100, restart=False)
+    self.dataset = AtariDataset(transition=self.encode_trans)
+    self.network = VLadder(self.dataset, file_path='vlae/models/', name=args.name, add_coords=True)
     if self.useVLAE == 0 or self.useVLAE == 2:
        self.xdim = 84
        self.ydim = 84
@@ -42,40 +42,62 @@ class Env():
     if self.useVLAE == 0:
     	state = cv2.resize(self.ale.getScreenGrayscale(), (84, 84), interpolation=cv2.INTER_LINEAR)
     	return torch.tensor(state, dtype=torch.float32, device=self.device)
-    state = self.ale.getScreenRGB()
-    state = cv2.resize(state, (96, 96), interpolation=cv2.INTER_LINEAR)
-    state = self.network.get_latent_codes(np.reshape(state,(1,96,96,3)))
-    state = torch.tensor(state, dtype=torch.float32, device=self.device)
-    if self.useVLAE == 1:
-       return state
-    elif self.useVLAE == 2:
-       state2 = cv2.resize(self.ale.getScreenGrayscale(), (84, 83), interpolation=cv2.INTER_LINEAR)
-       state2 = torch.tensor(state2, dtype=torch.float32, device=self.device)
-       return torch.cat((state2, state), 0)
+    if not self.encode_trans:
+        state = self.ale.getScreenRGB()
+        state = cv2.resize(state, (96, 96), interpolation=cv2.INTER_LINEAR)
+        state = self.network.get_latent_codes(np.reshape(state,(1,96,96,3)))
+        state = torch.tensor(state, dtype=torch.float32, device=self.device)
+        if self.useVLAE == 1:
+            return state
+        elif self.useVLAE == 2:
+            state2 = cv2.resize(self.ale.getScreenGrayscale(), (84, 83), interpolation=cv2.INTER_LINEAR)
+            state2 = torch.tensor(state2, dtype=torch.float32, device=self.device)
+            return torch.cat((state2, state), 0)
+    else:
+        state = cv2.resize(self.ale.getScreenGrayscale(), (96, 96), interpolation=cv2.INTER_LINEAR)
+        return torch.tensor(state, dtype=torch.float32, device=self.device)
+
+  def concatenate_rep(self, state):
+    comp_rep = torch.tensor(self.network.get_latent_codes(np.reshape(state.cpu(), (1,96,96,4))), dtype=torch.float32, device=self.device)
+    comp_rep = torch.tensor(comp_rep, dtype=torch.float32, device=self.device)
+    state = [cv2.resize(s.cpu().numpy(), (84, 83), interpolation=cv2.INTER_LINEAR) for s in state]
+    state = [torch.tensor(s, dtype=torch.float32, device=self.device) for s in state]
+    state = [torch.cat([s, comp_rep], 0) for s in state]
+    state = torch.stack(state, 0).to(dtype=torch.float32, device=self.device)
+    return state     
 
   def _reset_buffer(self):
     for _ in range(self.window):
-      self.state_buffer.append(torch.zeros(self.xdim, self.ydim, device=self.device))
+      if self.encode_trans:
+        self.state_buffer.append(torch.zeros(96, 96, device=self.device))
+      else:
+        self.state_buffer.append(torch.zeros(84, 84, device=self.device))
 
   def reset(self):
     if self.life_termination:
       self.life_termination = False
-      self.ale.act(0) # Literally do nothing.
+      self.ale.act(0)
     else:
       self._reset_buffer()
       self.ale.reset_game()
-      for _ in range(random.randrange(30)): # Do nothing up to 30 times (random) - introduces variety
+      for _ in range(random.randrange(30)):
         self.ale.act(0)
         if self.ale.game_over():
           self.ale.reset_game()
     observation = self._get_state()
     self.state_buffer.append(observation)
     self.lives = self.ale.lives()
-    return torch.stack(list(self.state_buffer), 0)
+    state = torch.stack(list(self.state_buffer), 0)
+    if self.encode_trans:
+      return self.concatenate_rep(state)
+    else:
+      return state
 
   def step(self, action):
-    # Repeats action 4 times. Max pools over last 2 frames.
-    frame_buffer = torch.zeros(2, self.xdim, self.ydim, device=self.device)
+    if self.encode_trans:
+      frame_buffer = torch.zeros(2, 96, 96, device=self.device)
+    else:
+      frame_buffer = torch.zeros(2, 84, 84, device=self.device)
     reward, done = 0, False
     for t in range(4):
       reward += self.ale.act(self.actions.get(action))
@@ -94,7 +116,11 @@ class Env():
         self.life_termination = not done
         done = True
       self.lives = lives
-    return torch.stack(list(self.state_buffer), 0), reward, done
+    state = torch.stack(list(self.state_buffer), 0)
+    if self.encode_trans:
+      return self.concatenate_rep(state), reward, done
+    else:
+      return state, reward, done
 
   def train(self):
     self.training = True
