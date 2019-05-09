@@ -1,3 +1,5 @@
+This folder was cloned from https://github.com/Kaixhin/Rainbow and then changed. The following is the original readme.
+
 Rainbow
 =======
 [![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE.md)
