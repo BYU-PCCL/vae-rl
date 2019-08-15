@@ -1,3 +1,6 @@
+This implementation (including this README) came from https://github.com/Kaixhin/Rainbow and then was adapted to our purposes.
+
+
 Rainbow
 =======
 [![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE.md)
